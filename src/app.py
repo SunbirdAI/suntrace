@@ -8,14 +8,18 @@ from shapely.wkt import loads as wkt_loads, dumps as wkt_dumps
 from dotenv import load_dotenv
 from utils.llm_function_caller import ask_with_functions
 from utils.factory import create_geospatial_analyzer
+import openai
 
+# Clear any existing problematic environment variable
+if 'OPENAI_API_KEY' in os.environ: 
+    del os.environ['OPENAI_API_KEY']
 # Load environment variables from .env file
 load_dotenv()
 
 
-
 app = Flask(__name__)
 
+openai.api_key = os.getenv("OPENAI_API_KEY")
 # Initialize analyzer once
 geospatial_analyzer = create_geospatial_analyzer()
 
@@ -74,4 +78,4 @@ def query():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, use_reloader=False)
