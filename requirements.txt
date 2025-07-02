@@ -13,6 +13,11 @@ numpy>=1.21.0
 folium>=0.14.0
 matplotlib>=3.5.0
 
+# Jupyter and notebook support
+notebook>=7.0.0
+ipykernel>=6.0.0
+jupyterlab>=4.0.0
+
 # Testing and development
 pytest>=7.0.0
 pytest-cov>=4.0.0
@@ -27,7 +32,3 @@ isort>=5.10.0
 
 # Optional: For Earth Engine integration (if needed)
 # earthengine-api>=0.1.350
-
-# Optional: For PostGIS integration (if needed)
-# psycopg2-binary>=2.9.0
-# sqlalchemy>=1.4.0

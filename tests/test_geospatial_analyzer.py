@@ -79,9 +79,9 @@ def run_tests():
     print("\n4. _ensure_gdf_crs_for_calculation:")
     if not analyzer._buildings_gdf.empty:
         try:
-            buildings_metric = analyzer._ensure_gdf_crs_for_calculation(analyzer._buildings_gdf.copy(), analyzer.target_metric_crs)
+            buildings_metric = analyzer._check_and_reproject_gdf(analyzer._buildings_gdf.copy(), analyzer.target_metric_crs)
             print(f"  Buildings GDF reprojected/ensured to {analyzer.target_metric_crs}: {buildings_metric.crs}")
-            buildings_geo = analyzer._ensure_gdf_crs_for_calculation(analyzer._buildings_gdf.copy(), analyzer.target_geographic_crs)
+            buildings_geo = analyzer._check_and_reproject_gdf(analyzer._buildings_gdf.copy(), analyzer.target_geographic_crs)
             print(f"  Buildings GDF reprojected/ensured to {analyzer.target_geographic_crs}: {buildings_geo.crs}")
         except Exception as e:
             print(f"  Error testing _ensure_gdf_crs_for_calculation: {e}")
@@ -96,14 +96,14 @@ def run_tests():
         try:
             sample_geom = analyzer._buildings_gdf.geometry.iloc[0]
             # Test reprojecting a single geometry
-            reprojected_geom, reprojected_flag = analyzer._ensure_crs_for_calculation(sample_geom, analyzer.target_metric_crs)
+            reprojected_geom, reprojected_flag = analyzer._prepare_geometry_for_crs(sample_geom, analyzer.target_metric_crs)
             print(f"  Sample geometry reprojected to metric CRS (reprojected: {reprojected_flag}). Original CRS was implicitly {analyzer._buildings_gdf.crs}")
 
             # Test with a geometry that might already be in the target CRS (less likely for initial geographic load)
             # Create a dummy GeoSeries with the target metric CRS
             import geopandas as gpd
             temp_metric_geom = gpd.GeoSeries([Point(1,1)], crs=analyzer.target_metric_crs).iloc[0]
-            ensured_geom, reprojected_flag_metric = analyzer._ensure_crs_for_calculation(temp_metric_geom, analyzer.target_metric_crs)
+            ensured_geom, reprojected_flag_metric = analyzer._prepare_geometry_for_crs(temp_metric_geom, analyzer.target_metric_crs)
             print(f"  Sample geometry already in metric CRS (reprojected: {reprojected_flag_metric})")
 
         except Exception as e:

@@ -20,6 +20,13 @@ warnings.filterwarnings("ignore", message="Iteration over dataset of unknown siz
 
 # Assuming pip install rasterio and pip install folium has been run
 
+# A note on initialization. The GeospatialAnalyzer class assumes that input geometries to its methods are in the CRS EPSG:4326 (WGS84),
+# as is default for leaflet and folium maps. If further iterations are needed, with different input geometries, this may need to be updated
+# to handle different CRS inputs and reproject them as needed.
+# Please ensure that test regions also follow this convention, or are reprojected accordingly before passing to the methods.
+# For operations that require metric calculations (like area), the class will reproject geometries to a metric CRS (default is EPSG:32636, UTM zone 36N for Uganda).
+
+
 class GeospatialAnalyzer:
     """
     A class to load, manage, and analyze geospatial data for a specific region.
@@ -198,45 +205,23 @@ class GeospatialAnalyzer:
 
 
     # Helper to ensure a geometry has a CRS for calculations
-    def _ensure_crs_for_calculation(self, geometry: base.BaseGeometry, target_crs: str) -> Tuple[base.BaseGeometry, bool]:
+    def _prepare_geometry_for_crs(self, geometry: base.BaseGeometry, target_crs: str) -> Tuple[gpd.GeoSeries, bool]:
         """
         Ensures a Shapely geometry is in the target CRS for calculations.
         Returns the reprojected geometry and a boolean indicating if reprojection occurred.
         """
-        # Shapely geometries don't have CRS. Need context from source GeoDataFrame.
-        # This is a simplification. A more robust solution would involve passing
-        # the source GeoDataFrame or its CRS.
-        # For now, we'll assume if the geometry comes from one of our loaded GDFs,
-        # it will have the expected CRS or we handle the reprojection based on common assumptions.
-
-        # If the input geometry has CRS info (e.g., from a GeoSeries), use it.
-        original_crs = None
-        if hasattr(geometry, 'crs') and geometry.crs is not None:
-             original_crs = geometry.crs
-        elif hasattr(geometry, 'index') and isinstance(geometry.index, gpd.GeoSeries): # Check if it's a GeoSeries
-             original_crs = geometry.index.crs
-
-        geom_to_process = geometry
+        geom_series = gpd.GeoSeries([geometry], crs=self.target_geographic_crs)
         reprojected = False
 
-        if original_crs is None:
-             print(f"Warning: Input geometry for calculation has no CRS. Assuming {self.target_geographic_crs}.")
-             # Cannot reproject without knowing original CRS. Assume target CRS.
-             # This is risky. Better to ensure CRS is always present upstream.
-             # If you know the source, set CRS explicitly here.
-             pass # Proceeding without explicit reprojection assumption
+        if self.target_geographic_crs != target_crs:
+            geom_series = geom_series.to_crs(target_crs)
+            reprojected = True
 
-        elif original_crs.to_epsg() != int(target_crs.split(':')[-1]):
-             print(f"Reprojecting geometry from {original_crs} to {target_crs} for calculation.")
-             temp_gs = gpd.GeoSeries([geometry], crs=original_crs).to_crs(target_crs)
-             geom_to_process = temp_gs.iloc[0]
-             reprojected = True
-
-        return geom_to_process, reprojected
+        return geom_series, reprojected
 
 
     # Helper to ensure a GeoDataFrame has a CRS for calculations
-    def _ensure_gdf_crs_for_calculation(self, gdf: gpd.GeoDataFrame, target_crs: str) -> gpd.GeoDataFrame:
+    def _check_and_reproject_gdf(self, gdf: gpd.GeoDataFrame, target_crs: str) -> gpd.GeoDataFrame:
          """
          Ensures a GeoDataFrame is in the target CRS for calculations.
          Returns the reprojected GeoDataFrame.
@@ -272,7 +257,7 @@ class GeospatialAnalyzer:
         gdf = self._joined_tiles_gdf.copy()  # Work on a copy to avoid modifying original data
 
         # Ensure consistent CRS for tile intersection with the region
-        region_for_intersect, _ = self._ensure_crs_for_calculation(region, gdf.crs)
+        region_for_intersect, _ = self._prepare_geometry_for_crs(region, gdf.crs)
 
         try:
             intersecting_tiles = gdf.loc[gdf.intersects(region_for_intersect)]
@@ -308,7 +293,7 @@ class GeospatialAnalyzer:
 
         gdf = layer_map[layer_name].copy()
         # Ensure consistent CRS for intersection
-        region_for_intersect, _ = self._ensure_crs_for_calculation(region, gdf.crs)
+        region_for_intersect, _ = self._prepare_geometry_for_crs(region, gdf.crs)
         try:
             if filter_expr:
                 gdf = gdf.query(filter_expr)
@@ -390,7 +375,7 @@ class GeospatialAnalyzer:
              return 0
 
         # Ensure consistent CRS for intersection
-        region_for_intersect, _ = self._ensure_crs_for_calculation(region, gdf.crs)
+        region_for_intersect, _ = self._prepare_geometry_for_crs(region, gdf.crs)
 
 
         try:
@@ -436,7 +421,7 @@ class GeospatialAnalyzer:
              return 0
 
         # Ensure consistent CRS for tile intersection with the region
-        tiles_for_intersect = self._ensure_gdf_crs_for_calculation(self._joined_tiles_gdf.copy(), region.crs)
+        tiles_for_intersect = self._check_and_reproject_gdf(self._joined_tiles_gdf.copy(), region.crs)
         region_for_tiles_intersect = region # Assuming region's CRS is the target
 
         tiles_in_region = tiles_for_intersect.loc[tiles_for_intersect.intersects(region_for_tiles_intersect)].copy()
@@ -452,7 +437,7 @@ class GeospatialAnalyzer:
 
         # Buffer those tiles into a unioned polygon
         # Ensure metric CRS for accurate buffering and union
-        high_ndvi_tiles_metric = self._ensure_gdf_crs_for_calculation(high_ndvi_tiles, self.target_metric_crs)
+        high_ndvi_tiles_metric = self._check_and_reproject_gdf(high_ndvi_tiles, self.target_metric_crs)
 
 
         try:
@@ -463,10 +448,10 @@ class GeospatialAnalyzer:
 
         # Intersect buildings with that highveg_area ∩ region
         # Ensure buildings_gdf is in the same CRS as the highveg_area_metric for intersection
-        buildings_to_intersect = self._ensure_gdf_crs_for_calculation(self._buildings_gdf.copy(), highveg_area_metric.crs)
+        buildings_to_intersect = self._check_and_reproject_gdf(self._buildings_gdf.copy(), highveg_area_metric.crs)
 
         # Ensure the region is also in the metric CRS for the final intersection
-        region_metric, _ = self._ensure_crs_for_calculation(region, self.target_metric_crs)
+        region_metric, _ = self._prepare_geometry_for_crs(region, self.target_metric_crs)
 
 
         try:
@@ -501,25 +486,21 @@ class GeospatialAnalyzer:
              return float("nan")
 
         # Ensure consistent CRS for tile intersection with the region
-        tiles_for_intersect = self._ensure_gdf_crs_for_calculation(self._joined_tiles_gdf.copy(), region.crs)
-        region_for_tiles_intersect = region # Assuming region's CRS is the target
+        gdf = self._joined_tiles_gdf.copy() # Work on a copy to avoid modifying original data 
 
+        tiles_metric = self._check_and_reproject_gdf(gdf, self.target_metric_crs)
+        region_metric, _ = self._prepare_geometry_for_crs(region, self.target_metric_crs)
 
-        tiles = tiles_for_intersect.loc[tiles_for_intersect.intersects(region_for_tiles_intersect)].copy()
+        tiles = tiles_metric.loc[tiles_metric.intersects(region_metric)]
 
         if tiles.empty:
             return float("nan")
-
-        # Ensure a metric CRS for accurate area calculation
-        tiles_metric = self._ensure_gdf_crs_for_calculation(tiles, self.target_metric_crs)
-        region_metric, _ = self._ensure_crs_for_calculation(region, self.target_metric_crs)
-
-
+        
         try:
             # Ensure intersection is done in a projected CRS for area calculation
-            tiles_metric.loc[:, "intersect_area"] = tiles_metric.geometry.intersection(region_metric).area
-            weighted = (tiles_metric["ndvi_mean"] * tiles_metric["intersect_area"]).sum()
-            total   = tiles_metric["intersect_area"].sum()
+            tiles.loc[:, "intersect_area"] = tiles.geometry.intersection(region_metric.geometry).area
+            weighted = (tiles["ndvi_mean"] * tiles["intersect_area"]).sum()
+            total   = tiles["intersect_area"].sum()
             return weighted / total if total > 0 else float("nan")
         except Exception as e:
             print(f"Error calculating area-weighted average NDVI: {e}")
@@ -548,7 +529,7 @@ class GeospatialAnalyzer:
             }
 
         # Ensure consistent CRS for tile intersection with the region
-        tiles_for_intersect = self._ensure_gdf_crs_for_calculation(self._joined_tiles_gdf.copy(), region.crs)
+        tiles_for_intersect = self._check_and_reproject_gdf(self._joined_tiles_gdf.copy(), region.crs)
         region_for_tiles_intersect = region # Assuming region's CRS is the target
 
         tiles = tiles_for_intersect.loc[tiles_for_intersect.intersects(region_for_tiles_intersect)]
@@ -624,10 +605,10 @@ class GeospatialAnalyzer:
              return []
 
         # Ensure minigrids GeoDataFrame is in a metric CRS for accurate distance calculation
-        minigrids_metric = self._ensure_gdf_crs_for_calculation(self._minigrids_gdf.copy(), self.target_metric_crs)
+        minigrids_metric = self._check_and_reproject_gdf(self._minigrids_gdf.copy(), self.target_metric_crs)
 
         # Ensure the query point is also in the same metric CRS
-        point_metric, _ = self._ensure_crs_for_calculation(pt, self.target_metric_crs)
+        point_metric, _ = self._prepare_geometry_for_crs(pt, self.target_metric_crs)
 
 
         try:
@@ -869,7 +850,7 @@ class GeospatialAnalyzer:
                 # Ensure the centroid calculation handles CRS
                 try:
                     # Reproject to a suitable geographic CRS for Folium
-                    tiles_for_centroid = self._ensure_gdf_crs_for_calculation(self._plain_tiles_gdf.copy(), self.target_geographic_crs)
+                    tiles_for_centroid = self._check_and_reproject_gdf(self._plain_tiles_gdf.copy(), self.target_geographic_crs)
                     calculated_center = tiles_for_centroid.geometry.centroid.iloc[0]
                     map_center = [calculated_center.y, calculated_center.x]
                 except Exception as e:
@@ -881,7 +862,7 @@ class GeospatialAnalyzer:
         else:
             # Ensure the input center point is in a geographic CRS for Folium
             try:
-                center_point_geographic, _ = self._ensure_crs_for_calculation(center_point, self.target_geographic_crs)
+                center_point_geographic, _ = self._prepare_geometry_for_crs(center_point, self.target_geographic_crs)
                 map_center = [center_point_geographic.y, center_point_geographic.x]
             except Exception as e:
                 print(f"Warning: Could not use provided center point due to CRS issues: {e}. Using default center.")
@@ -895,7 +876,7 @@ class GeospatialAnalyzer:
         if show_tiles and not self._plain_tiles_gdf.empty:
             try:
                 # Reproject to geographic CRS for Folium
-                tiles_for_vis = self._ensure_gdf_crs_for_calculation(self._plain_tiles_gdf.copy(), self.target_geographic_crs)
+                tiles_for_vis = self._check_and_reproject_gdf(self._plain_tiles_gdf.copy(), self.target_geographic_crs)
                 folium.GeoJson(
                     tiles_for_vis.to_json(),
                     name='Plain Tiles',
@@ -908,7 +889,7 @@ class GeospatialAnalyzer:
         if show_minigrids and not self._minigrids_gdf.empty:
             try:
                 # Reproject to geographic CRS for Folium
-                minigrids_for_vis = self._ensure_gdf_crs_for_calculation(self._minigrids_gdf.copy(), self.target_geographic_crs)
+                minigrids_for_vis = self._check_and_reproject_gdf(self._minigrids_gdf.copy(), self.target_geographic_crs)
                 folium.GeoJson(
                     minigrids_for_vis.to_json(),
                     name='Mini Grids',
@@ -923,7 +904,7 @@ class GeospatialAnalyzer:
             # Consider adding a subset or focusing on buildings within a smaller area if needed.
             try:
                 # Reproject to geographic CRS for Folium
-                buildings_for_vis = self._ensure_gdf_crs_for_calculation(self._buildings_gdf.copy(), self.target_geographic_crs)
+                buildings_for_vis = self._check_and_reproject_gdf(self._buildings_gdf.copy(), self.target_geographic_crs)
                 # Limit the number of buildings for performance if necessary
                 # buildings_for_vis = buildings_for_vis.head(1000)
                 folium.GeoJson(
@@ -943,7 +924,7 @@ class GeospatialAnalyzer:
         if show_tile_stats and not self._joined_tiles_gdf.empty and 'ndvi_mean' in self._joined_tiles_gdf.columns:
              try:
                  # Reproject to geographic CRS for Folium
-                 tiles_stats_for_vis = self._ensure_gdf_crs_for_calculation(self._joined_tiles_gdf.copy(), self.target_geographic_crs)
+                 tiles_stats_for_vis = self._check_and_reproject_gdf(self._joined_tiles_gdf.copy(), self.target_geographic_crs)
                  folium.GeoJson(
                      tiles_stats_for_vis.to_json(),
                      name='Tile Stats (NDVI)',
