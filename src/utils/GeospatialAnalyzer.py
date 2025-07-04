@@ -294,10 +294,11 @@ class GeospatialAnalyzer:
         gdf = layer_map[layer_name].copy()
         # Ensure consistent CRS for intersection
         region_for_intersect, _ = self._prepare_geometry_for_crs(region, gdf.crs)
+        region_geom = region_for_intersect.geometry.iloc[0]
         try:
             if filter_expr:
                 gdf = gdf.query(filter_expr)
-            intersecting_features = gdf.loc[gdf.intersects(region_for_intersect)]
+            intersecting_features = gdf.loc[gdf.intersects(region_geom)]
             return intersecting_features
         except Exception as e:
             print(f"Error finding features within region: {e}")
@@ -488,17 +489,19 @@ class GeospatialAnalyzer:
         # Ensure consistent CRS for tile intersection with the region
         gdf = self._joined_tiles_gdf.copy() # Work on a copy to avoid modifying original data 
 
-        tiles_metric = self._check_and_reproject_gdf(gdf, self.target_metric_crs)
-        region_metric, _ = self._prepare_geometry_for_crs(region, self.target_metric_crs)
+        tiles_m = self._check_and_reproject_gdf(gdf, self.target_metric_crs)
+        region_m, _ = self._prepare_geometry_for_crs(region, self.target_metric_crs)
+        region_m_geom = region_m.geometry.iloc[0]
 
-        tiles = tiles_metric.loc[tiles_metric.intersects(region_metric)]
+        tiles = tiles_m.loc[tiles_m.intersects(region_m_geom)]
 
         if tiles.empty:
             return float("nan")
         
         try:
             # Ensure intersection is done in a projected CRS for area calculation
-            tiles.loc[:, "intersect_area"] = tiles.geometry.intersection(region_metric.geometry).area
+            tiles = tiles.copy()  # Avoid SettingWithCopyWarning
+            tiles["intersect_area"] = tiles.geometry.intersection(region_m_geom).area
             weighted = (tiles["ndvi_mean"] * tiles["intersect_area"]).sum()
             total   = tiles["intersect_area"].sum()
             return weighted / total if total > 0 else float("nan")
