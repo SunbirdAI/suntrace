@@ -380,7 +380,7 @@ class GeospatialAnalyzer:
 
         try:
             # Use .loc to avoid SettingWithCopyWarning
-            clipped = gdf.loc[gdf.intersects(region_for_intersect)]
+            clipped = gdf.loc[gdf.intersects(region_for_intersect.geometry.iloc[0])]
             return len(clipped)
         except Exception as e:
             print(f"Error during intersection for layer '{layer_name}': {e}")
