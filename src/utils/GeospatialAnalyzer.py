@@ -60,6 +60,17 @@ class GeospatialAnalyzer:
         self._minigrids_gdf: gpd.GeoDataFrame = self._load_and_validate_gdf(minigrids_path, ensure_crs=True)
         self._tile_stats_gdf: gpd.GeoDataFrame = self._load_and_process_tile_stats(tile_stats_path)
         self._plain_tiles_gdf: gpd.GeoDataFrame = self._load_and_validate_gdf(plain_tiles_path, ensure_crs=True)
+        self._candidate_minigrids_gdf: gpd.GeoDataFrame = self._load_and_validate_gdf(candidate_minigrids_path, ensure_crs=True)
+        self._existing_minigrids_gdf: gpd.GeoDataFrame = self._load_and_validate_gdf(existing_minigrids_path, ensure_crs=True)
+        self._existing_grid_gdf: gdp.GeoDataFrame = self._load_and_validate_gdf(existing_grid_path, ensure_crs=True)
+        self._grid_extension_gdf: gdp.GeoDataFrame = self._load_and_validate_gdf(grid_extension_path, ensure_crs=True)
+        self._roads_gdf: gdp.GeoDataFrame = self._load_and_validate_gdf(roads_path, ensure_crs=True)
+        self._vizualization_dir : gdp.GeoDataFrame = self._load_and_validate_gdf(vizualization_dir, ensure_crs=True)
+        self._parishes_gdf: gdp.GeoDataFrame = self._load_and_validate_gdf(parishes_path, ensure_crs=True)
+        self._subcounties_gdf: gdp.GeoDataFrame = self._load_and_validate_gdf(subcounties_path, ensure_crs=True)
+        
+
+
 
         # Merge tile stats with plain tiles for easier spatial queries
         self._joined_tiles_gdf = self._merge_tile_data(self._tile_stats_gdf, self._plain_tiles_gdf)
@@ -286,6 +297,16 @@ class GeospatialAnalyzer:
             'buildings': self._buildings_gdf,
             'minigrids': self._minigrids_gdf,
             'tiles': self._joined_tiles_gdf # Use the joined gdf for tile queries
+            'roads': self._roads_gdf,
+            'villages': self._villages_gdf,
+            'parishes': self._parishes_gdf,
+            'subcounties': self._subcounties_gdf,
+            'existing_grid': self._existing_grid_gdf,
+            'grid_extension': self._grid_extension_gdf,
+            'candidate_minigrids': self._candidate_minigrids_gdf,
+            'existing_minigrids': self._existing_minigrids_gdf,
+           'sample_region': self._sample_region_gdf,
+            
         }
         if layer_name not in layer_map:
             print(f"Error: Unknown layer name '{layer_name}'. Available layers: {list(layer_map.keys())}")
@@ -328,6 +349,35 @@ class GeospatialAnalyzer:
             A GeoDataFrame containing the intersecting mini-grids and their attributes.
         """
         return self.get_gdf_info_within_region(region, 'minigrids')
+
+    def get_roads_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
+        return self.get_gdf_info_within_region(region, 'roads')
+
+    def get_villages_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
+        return self.get_gdf_info_within_region(region, 'villages')
+
+    def get_parishes_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
+        return self.get_gdf_info_within_region(region, 'parishes')
+
+    def get_subcounties_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
+        return self.get_gdf_info_within_region(region, 'subcounties')
+
+    def get_existing_grid_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
+        return self.get_gdf_info_within_region(region, 'existing_grid')
+
+    def get_grid_extension_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
+        return self.get_gdf_info_within_region(region, 'grid_extension')
+
+    def get_candidate_minigrids_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
+        return self.get_gdf_info_within_region(region, 'candidate_minigrids')
+
+    def get_existing_minigrids_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
+        return self.get_gdf_info_within_region(region, 'existing_minigrids')
+
+    def get_sample_region_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
+      return self.get_gdf_info_within_region(region, 'sample_region')
+
+
         
     # -----------------------------------------------------------------------------
     # 1) Generic vector‐counting primitive
@@ -353,6 +403,15 @@ class GeospatialAnalyzer:
             'buildings': self._buildings_gdf,
             'minigrids': self._minigrids_gdf,
             'tiles': self._joined_tiles_gdf # Use the joined gdf for tile queries
+            'roads': self._roads_gdf,
+            'villages': self._villages_gdf,
+            'parishes': self._parishes_gdf,
+            'subcounties': self._subcounties_gdf,
+            'existing_grid': self._existing_grid_gdf,
+            'grid_extension': self._grid_extension_gdf,
+            'candidate_minigrids': self._candidate_minigrids_gdf,
+            'existing_minigrids': self._existing_minigrids_gdf,
+           'sample_region': self._sample_region_gdf,
         }
         if layer_name not in layer_map:
             print(f"Error: Unknown layer name '{layer_name}'. Available layers: {list(layer_map.keys())}")
@@ -401,6 +460,34 @@ class GeospatialAnalyzer:
             The number of buildings within the region.
         """
         return self.count_features_within_region(region, 'buildings')
+
+        
+    def get_roads_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
+        return self.get_gdf_info_within_region(region, 'roads')
+
+    def get_villages_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
+        return self.get_gdf_info_within_region(region, 'villages')
+
+    def get_parishes_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
+        return self.get_gdf_info_within_region(region, 'parishes')
+
+    def get_subcounties_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
+        return self.get_gdf_info_within_region(region, 'subcounties')
+
+    def get_existing_grid_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
+        return self.get_gdf_info_within_region(region, 'existing_grid')
+
+    def get_grid_extension_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
+        return self.get_gdf_info_within_region(region, 'grid_extension')
+
+    def get_candidate_minigrids_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
+        return self.get_gdf_info_within_region(region, 'candidate_minigrids')
+
+    def get_existing_minigrids_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
+        return self.get_gdf_info_within_region(region, 'existing_minigrids')
+
+    def get_sample_region_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
+        return self.get_gdf_info_within_region(region, 'sample_region')
 
     def count_high_ndvi_buildings(self,
         region: Polygon,
@@ -466,6 +553,9 @@ class GeospatialAnalyzer:
         except Exception as e:
              print(f"Error during building intersection with high vegetation area and region in count_high_ndvi_buildings: {e}")
              return 0
+
+
+
 
 
     # -----------------------------------------------------------------------------
