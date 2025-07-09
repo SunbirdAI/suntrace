@@ -381,11 +381,6 @@ class GeospatialAnalyzer:
     def get_existing_minigrids_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
         return self.get_gdf_info_within_region(region, 'existing_minigrids')
 
-    def get_sample_region_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
-      return self.get_gdf_info_within_region(region, 'sample_region')
-
-
-        
     # -----------------------------------------------------------------------------
     # 1) Generic vector‐counting primitive
     # -----------------------------------------------------------------------------
@@ -453,7 +448,7 @@ class GeospatialAnalyzer:
             return 0
 
     # -----------------------------------------------------------------------------
-    # 2) Building‐specific counts
+    # 2) Layer‐specific counts
     # -----------------------------------------------------------------------------
     def count_buildings_within_region(self, region: Polygon) -> int:
         """
@@ -466,35 +461,107 @@ class GeospatialAnalyzer:
             The number of buildings within the region.
         """
         return self.count_features_within_region(region, 'buildings')
+    def count_minigrids_within_region(self, region: Polygon) -> int:
+        """
+        Counts all mini-grids within the region.
 
+        Args:
+            region: The Shapely Polygon defining the area of interest.
+
+        Returns:
+            The number of mini-grids within the region.
+        """
+        return self.count_features_within_region(region, 'minigrids')
         
-    def get_roads_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
-        return self.get_gdf_info_within_region(region, 'roads')
+    def count_roads_within_region(self, region: Polygon) -> int:
+        return self.count_features_within_region(region, 'roads')
 
-    def get_villages_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
-        return self.get_gdf_info_within_region(region, 'villages')
+    def count_villages_within_region(self, region: Polygon) -> int:
+        """
+        Counts all villages within the region.
 
-    def get_parishes_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
-        return self.get_gdf_info_within_region(region, 'parishes')
+        Args:
+            region: The Shapely Polygon defining the area of interest.
 
-    def get_subcounties_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
-        return self.get_gdf_info_within_region(region, 'subcounties')
+        Returns:
+            The number of villages within the region.
+        """
+        return self.count_features_within_region(region, 'villages')
 
-    def get_existing_grid_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
-        return self.get_gdf_info_within_region(region, 'existing_grid')
+    def count_parishes_within_region(self, region: Polygon) -> int:
+        """
+        Counts all parishes within the region.
 
-    def get_grid_extension_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
-        return self.get_gdf_info_within_region(region, 'grid_extension')
+        Args:
+            region: The Shapely Polygon defining the area of interest.
 
-    def get_candidate_minigrids_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
-        return self.get_gdf_info_within_region(region, 'candidate_minigrids')
+        Returns:
+            The number of parishes within the region.
+        """
+        return self.count_features_within_region(region, 'parishes')
 
-    def get_existing_minigrids_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
-        return self.get_gdf_info_within_region(region, 'existing_minigrids')
+    def count_subcounties_within_region(self, region: Polygon) -> int:
+        """
+        Counts all subcounties within the region.
 
-    def get_sample_region_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
-        return self.get_gdf_info_within_region(region, 'sample_region')
+        Args:
+            region: The Shapely Polygon defining the area of interest.
 
+        Returns:
+            The number of subcounties within the region.
+        """
+        return self.count_features_within_region(region, 'subcounties')
+
+    def count_existing_grid_within_region(self, region: Polygon) -> int:
+        """
+        Counts all existing grid features within the region.
+
+        Args:
+            region: The Shapely Polygon defining the area of interest.
+
+        Returns:
+            The number of existing grid features within the region.
+        """
+        return self.count_features_within_region(region, 'existing_grid')
+
+    def count_grid_extension_within_region(self, region: Polygon) -> int:
+        """
+        Counts all grid extension features within the region.
+
+        Args:
+            region: The Shapely Polygon defining the area of interest.
+
+        Returns:
+            The number of grid extension features within the region.
+        """
+        return self.count_features_within_region(region, 'grid_extension')
+
+    def count_candidate_minigrids_within_region(self, region: Polygon) -> int:
+        """
+        Counts all candidate mini-grids within the region.
+
+        Args:
+            region: The Shapely Polygon defining the area of interest.
+
+        Returns:
+            The number of candidate mini-grids within the region.
+        """
+        return self.count_features_within_region(region, 'candidate_minigrids')
+
+    def count_existing_minigrids_within_region(self, region: Polygon) -> int:
+        """
+        Counts all existing mini-grids within the region.
+
+        Args:
+            region: The Shapely Polygon defining the area of interest.
+
+        Returns:
+            The number of existing mini-grids within the region.
+        """
+        return self.count_features_within_region(region, 'existing_minigrids')
+
+
+    # -----------------------------------------------------------------------------
     def count_high_ndvi_buildings(self,
         region: Polygon,
         ndvi_threshold: float = 0.4
