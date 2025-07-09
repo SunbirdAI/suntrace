@@ -16,7 +16,7 @@ warnings.filterwarnings("ignore", message="Iteration over dataset of unknown siz
 # Authentication and Initialization (Keep these at the top)
 # Uncomment if you are using Google Earth Engine (GEE)
 # ee.Authenticate() # Keep if you use EE
-# ee.Initialize(project='ee-isekalala') # Keep if you use EE
+# ee.Initialize(project='project-id') # Keep if you use EE
 
 # Assuming pip install rasterio and pip install folium has been run
 
@@ -37,6 +37,14 @@ class GeospatialAnalyzer:
                  minigrids_path: str,
                  tile_stats_path: str,
                  plain_tiles_path: str,
+                 candidate_minigrids_path: str,
+                 existing_minigrids_path: str,
+                 existing_grid_path: str,
+                 grid_extension_path: str,
+                 roads_path: str,
+                 villages_path: str,
+                 parishes_path: str,
+                 subcounties_path: str,
                  database_uri: Optional[str] = None,
                  target_metric_crs: str = "EPSG:32636", # WGS 84 / UTM zone 36N for Uganda
                  target_geographic_crs: str = "EPSG:4326" # WGS84 for visualization
@@ -62,12 +70,12 @@ class GeospatialAnalyzer:
         self._plain_tiles_gdf: gpd.GeoDataFrame = self._load_and_validate_gdf(plain_tiles_path, ensure_crs=True)
         self._candidate_minigrids_gdf: gpd.GeoDataFrame = self._load_and_validate_gdf(candidate_minigrids_path, ensure_crs=True)
         self._existing_minigrids_gdf: gpd.GeoDataFrame = self._load_and_validate_gdf(existing_minigrids_path, ensure_crs=True)
-        self._existing_grid_gdf: gdp.GeoDataFrame = self._load_and_validate_gdf(existing_grid_path, ensure_crs=True)
-        self._grid_extension_gdf: gdp.GeoDataFrame = self._load_and_validate_gdf(grid_extension_path, ensure_crs=True)
-        self._roads_gdf: gdp.GeoDataFrame = self._load_and_validate_gdf(roads_path, ensure_crs=True)
-        self._vizualization_dir : gdp.GeoDataFrame = self._load_and_validate_gdf(vizualization_dir, ensure_crs=True)
-        self._parishes_gdf: gdp.GeoDataFrame = self._load_and_validate_gdf(parishes_path, ensure_crs=True)
-        self._subcounties_gdf: gdp.GeoDataFrame = self._load_and_validate_gdf(subcounties_path, ensure_crs=True)
+        self._existing_grid_gdf: gpd.GeoDataFrame = self._load_and_validate_gdf(existing_grid_path, ensure_crs=True)
+        self._grid_extension_gdf: gpd.GeoDataFrame = self._load_and_validate_gdf(grid_extension_path, ensure_crs=True)
+        self._roads_gdf: gpd.GeoDataFrame = self._load_and_validate_gdf(roads_path, ensure_crs=True)
+        self._villages_gdf: gpd.GeoDataFrame = self._load_and_validate_gdf(villages_path, ensure_crs=True)
+        self._parishes_gdf: gpd.GeoDataFrame = self._load_and_validate_gdf(parishes_path, ensure_crs=True)
+        self._subcounties_gdf: gpd.GeoDataFrame = self._load_and_validate_gdf(subcounties_path, ensure_crs=True)
         
 
 
@@ -296,7 +304,7 @@ class GeospatialAnalyzer:
         layer_map = {
             'buildings': self._buildings_gdf,
             'minigrids': self._minigrids_gdf,
-            'tiles': self._joined_tiles_gdf # Use the joined gdf for tile queries
+            'tiles': self._joined_tiles_gdf, # Use the joined gdf for tile queries
             'roads': self._roads_gdf,
             'villages': self._villages_gdf,
             'parishes': self._parishes_gdf,
@@ -304,8 +312,7 @@ class GeospatialAnalyzer:
             'existing_grid': self._existing_grid_gdf,
             'grid_extension': self._grid_extension_gdf,
             'candidate_minigrids': self._candidate_minigrids_gdf,
-            'existing_minigrids': self._existing_minigrids_gdf,
-           'sample_region': self._sample_region_gdf,
+            'existing_minigrids': self._existing_minigrids_gdf
             
         }
         if layer_name not in layer_map:
@@ -402,7 +409,7 @@ class GeospatialAnalyzer:
         layer_map = {
             'buildings': self._buildings_gdf,
             'minigrids': self._minigrids_gdf,
-            'tiles': self._joined_tiles_gdf # Use the joined gdf for tile queries
+            'tiles': self._joined_tiles_gdf, # Use the joined gdf for tile queries
             'roads': self._roads_gdf,
             'villages': self._villages_gdf,
             'parishes': self._parishes_gdf,
@@ -410,8 +417,7 @@ class GeospatialAnalyzer:
             'existing_grid': self._existing_grid_gdf,
             'grid_extension': self._grid_extension_gdf,
             'candidate_minigrids': self._candidate_minigrids_gdf,
-            'existing_minigrids': self._existing_minigrids_gdf,
-           'sample_region': self._sample_region_gdf,
+            'existing_minigrids': self._existing_minigrids_gdf
         }
         if layer_name not in layer_map:
             print(f"Error: Unknown layer name '{layer_name}'. Available layers: {list(layer_map.keys())}")
