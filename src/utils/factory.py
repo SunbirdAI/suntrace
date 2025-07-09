@@ -20,11 +20,9 @@ def create_geospatial_analyzer(bpath=None, mpath=None, tpath=None, ppath=None, c
     existing_grid_path = os.path.join(os.path.dirname(__file__), "../../data/" + egpath) if egpath else paths.EXISTING_GRID_PATH
     grid_extension_path = os.path.join(os.path.dirname(__file__), "../../data/" + gepath) if gepath else paths.GRID_EXTENSION_PATH
     roads_path = os.path.join(os.path.dirname(__file__), "../../data/" + rpath) if rpath else paths.ROADS_PATH
-    visualization_dir = os.path.join(os.path.dirname(__file__), "../../data/" + vdir) if vdir else paths.VIZUALIZATION_DIR
     villages_path = os.path.join(os.path.dirname(__file__), "../../data/" + vpath) if vpath else paths.VILLAGES_PATH
     parishes_path = os.path.join(os.path.dirname(__file__), "../../data/" + papath) if papath else paths.PARISHES_PATH
     subcounties_path = os.path.join(os.path.dirname(__file__), "../../data/" + spath) if spath else paths.SUBCOUNTIES_PATH
-    sample_region_path = os.path.join(os.path.dirname(__file__), "../../data/" + srpath) if srpath else paths.SAMPLE_REGION_PATH
     
     
 
@@ -33,15 +31,13 @@ def create_geospatial_analyzer(bpath=None, mpath=None, tpath=None, ppath=None, c
         minigrids_path=minigrids_path,
         tile_stats_path=tile_stats_path,
         plain_tiles_path=plain_tiles_path,
-        candidate_minigrids_path,
-        existing_minigrids_path,
-        existing_grid_path,
-        grid_extension_path,
-        roads_path,
-        visualization_dir,
-        villages_path,
-        parishes_path,
-        subcounties_path,
-        sample_region_path,
+        candidate_minigrids_path=candidate_minigrids_path,
+        existing_minigrids_path=existing_minigrids_path,
+        existing_grid_path= existing_grid_path,
+        grid_extension_path=grid_extension_path,
+        roads_path= roads_path,
+        villages_path=villages_path,
+        parishes_path=parishes_path,
+        subcounties_path= subcounties_path,
 
     )
