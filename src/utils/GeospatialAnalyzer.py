@@ -816,7 +816,7 @@ class GeospatialAnalyzer:
         return self.weighted_tile_stat(region, 'par_mean')
 
     # -----------------------------------------------------------------------------
-    # 4) Nearest‐neighbor queries on mini‐grids
+    # 4) Get Layer Geoms and Nearest‐neighbor queries
     # -----------------------------------------------------------------------------
     def list_mini_grids(self) -> List[str]:
         """
@@ -833,24 +833,24 @@ class GeospatialAnalyzer:
              return self._minigrids_gdf.index.astype(str).tolist()
         return self._minigrids_gdf["Location"].tolist()
 
-    def get_site_geometry(self, site_id: str) -> Optional[Polygon]:
+    def get_layer_geometry(self, layer_id: str, region: Polygon) -> Optional[Polygon]:
         """
-        Returns the Shapely geometry for a given mini-grid site_id.
+        Returns the Shapely geometry for a given layer.
 
         Args:
-            site_id: The ID of the mini-grid site.
+            layer_id: The ID of the layer.
 
         Returns:
-            The Shapely Polygon geometry, or None if the site_id is not found.
+            The Shapely Polygon geometry, or None if the id is not found.
         """
         if self._minigrids_gdf.empty or 'site_id' not in self._minigrids_gdf.columns:
              print("Error: Mini-grid data is empty or missing 'site_id' for get_site_geometry.")
              return None
-        row = self._minigrids_gdf[self._minigrids_gdf["site_id"] == site_id]
+        row = self._minigrids_gdf[self._minigrids_gdf["site_id"] == layer_id]
         if not row.empty:
             return row.geometry.values[0]
         else:
-            print(f"Warning: Mini-grid site ID '{site_id}' not found.")
+            print(f"Warning: Mini-grid site ID '{layer_id}' not found.")
             return None
 
     def nearest_mini_grids(self,
