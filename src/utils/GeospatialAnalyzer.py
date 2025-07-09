@@ -637,7 +637,7 @@ class GeospatialAnalyzer:
         Returns:
             The Shapely Polygon geometry, or None if the site_id is not found.
         """
-        if self._minigrids_gdf.empty or 'site_id' not in self._minigrids_gdf.columns:
+        if self._minigrids_gdf.empty or 'ID' not in self._minigrids_gdf.columns:
              print("Error: Mini-grid data is empty or missing 'site_id' for get_site_geometry.")
              return None
         row = self._minigrids_gdf[self._minigrids_gdf["site_id"] == site_id]
