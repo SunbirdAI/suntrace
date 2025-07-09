@@ -561,19 +561,64 @@ class GeospatialAnalyzer:
     # -----------------------------------------------------------------------------
     # 3) NDVI & other tile‐based stats
     # -----------------------------------------------------------------------------
-    def avg_ndvi(self, region: Polygon) -> float:
+    def weighted_tile_stats_all(self, region: Polygon) -> Dict[str, float]:
         """
-        Calculates the area-weighted average NDVI for a region using tile statistics.
+        Calculates area-weighted averages for all numeric columns in the joined tiles GeoDataFrame
+        for the given region.
 
         Args:
             region: The Shapely Polygon defining the area of interest.
 
         Returns:
-            The area-weighted average NDVI, or NaN if no tiles intersect or total area is zero.
+            A dictionary mapping each numeric column name to its area-weighted average,
+            or NaN if no tiles intersect or total area is zero.
+        """
+        if self._joined_tiles_gdf.empty:
+            print("Error: Joined tiles data is empty.")
+            return {}
+
+        gdf = self._joined_tiles_gdf.copy()
+        tiles_m = self._check_and_reproject_gdf(gdf, self.target_metric_crs)
+        region_m, _ = self._prepare_geometry_for_crs(region, self.target_metric_crs)
+        region_m_geom = region_m.geometry.iloc[0]
+
+        tiles = tiles_m.loc[tiles_m.intersects(region_m_geom)]
+
+        if tiles.empty:
+            return {}
+
+        try:
+            tiles = tiles.copy()
+            tiles["intersect_area"] = tiles.geometry.intersection(region_m_geom).area
+            total_area = tiles["intersect_area"].sum()
+            if total_area == 0:
+                return {}
+
+            # Select numeric columns (excluding geometry and intersect_area)
+            numeric_cols = tiles.select_dtypes(include=[np.number]).columns
+            numeric_cols = [col for col in numeric_cols if col not in ["intersect_area"]]
+
+            weighted_stats = {}
+            for col in numeric_cols:
+                weighted_sum = (tiles[col] * tiles["intersect_area"]).sum()
+                weighted_stats[col] = weighted_sum / total_area if total_area > 0 else float("nan")
+            return weighted_stats
+        except Exception as e:
+            print(f"Error calculating area-weighted averages for all stats: {e}")
+            return {}
+    def weighted_tile_stat(self, region: Polygon, stat: str) -> float:
+        """
+        Calculates the area-weighted average statistic for a region using tile statistics.
+
+        Args:
+            region: The Shapely Polygon defining the area of interest.
+
+        Returns:
+            The area-weighted average statistic, or NaN if no tiles intersect or total area is zero.
         """
         # Use the joined tiles gdf
-        if self._joined_tiles_gdf.empty or 'ndvi_mean' not in self._joined_tiles_gdf.columns:
-             print("Error: Joined tiles data is empty or missing 'ndvi_mean' for avg_ndvi.")
+        if self._joined_tiles_gdf.empty or stat not in self._joined_tiles_gdf.columns:
+             print("Error: Joined tiles data is empty or missing {stat}.")
              return float("nan")
 
         # Ensure consistent CRS for tile intersection with the region
@@ -592,14 +637,24 @@ class GeospatialAnalyzer:
             # Ensure intersection is done in a projected CRS for area calculation
             tiles = tiles.copy()  # Avoid SettingWithCopyWarning
             tiles["intersect_area"] = tiles.geometry.intersection(region_m_geom).area
-            weighted = (tiles["ndvi_mean"] * tiles["intersect_area"]).sum()
+            weighted = (tiles[stat] * tiles["intersect_area"]).sum()
             total   = tiles["intersect_area"].sum()
             return weighted / total if total > 0 else float("nan")
         except Exception as e:
-            print(f"Error calculating area-weighted average NDVI: {e}")
+            print(f"Error calculating area-weighted average {stat}: {e}")
             return float("nan")
 
+    def avg_ndvi(self, region: Polygon) -> float:
+        """
+        Calculates the area-weighted average NDVI for a region using tile statistics.
 
+        Args:
+            region: The Shapely Polygon defining the area of interest.
+
+        Returns:
+            The area-weighted average NDVI, or NaN if no tiles intersect or total area is zero.
+        """
+        return self.weighted_tile_stat(region, 'ndvi_mean')
     def ndvi_stats(self, region: Polygon) -> Dict[str, float]:
         """
         Calculates descriptive statistics (mean, median, std) for NDVI
@@ -622,23 +677,70 @@ class GeospatialAnalyzer:
             }
 
         # Ensure consistent CRS for tile intersection with the region
-        tiles_for_intersect = self._check_and_reproject_gdf(self._joined_tiles_gdf.copy(), region.crs)
-        region_for_tiles_intersect = region # Assuming region's CRS is the target
-
-        tiles = tiles_for_intersect.loc[tiles_for_intersect.intersects(region_for_tiles_intersect)]
-
-        if tiles.empty:
-            return {
-                "NDVI_mean": float("nan"),
-                "NDVI_med": float("nan"),
-                "NDVI_std": float("nan"),
-            }
-
+        mean = self.avg_ndvi(region)
+        median = self.weighted_tile_stat(region, 'ndvi_med')
+        std = self.weighted_tile_stat(region, 'ndvi_std')
+        
         return {
-            "NDVI_mean": float(tiles["ndvi_mean"].mean()),
-            "NDVI_med": float(tiles["ndvi_med"].mean()),
-            "NDVI_std": float(tiles["ndvi_std"].mean()),
-        }
+            "NDVI_mean": (mean),
+            "NDVI_med": (median),
+            "NDVI_std": (std),
+        }    
+    def evi_med(self, region: Polygon) -> float:
+        """
+        Calculates the area-weighted median EVI for a region using tile statistics.
+
+        Args:
+            region: The Shapely Polygon defining the area of interest.
+
+        Returns:
+            The area-weighted median EVI, or NaN if no tiles intersect or total area is zero.
+        """
+        return self.weighted_tile_stat(region, 'evi_med')
+    def cf_days(self, region: Polygon) -> float:
+        """
+        Calculates the mean total cloud-free days for a region using tile statistics.
+
+        Args:
+            region: The Shapely Polygon defining the area of interest.
+
+        Returns:
+            The mean total cloud-free days, or NaN if no tiles intersect or total area is zero.
+        """
+        return self.weighted_tile_stat(region, 'cf_days')
+    def elev_mean(self, region: Polygon) -> float:
+        """
+        Calculates the area-weighted mean elevation for a region using tile statistics.
+
+        Args:
+            region: The Shapely Polygon defining the area of interest.
+
+        Returns:
+            The area-weighted mean elevation, or NaN if no tiles intersect or total area is zero.
+        """
+        return self.weighted_tile_stat(region, 'elev_mean')
+    def slope_mean(self, region: Polygon) -> float:
+        """
+        Calculates the area-weighted mean slope for a region using tile statistics.
+
+        Args:
+            region: The Shapely Polygon defining the area of interest.
+
+        Returns:
+            The area-weighted mean slope, or NaN if no tiles intersect or total area is zero.
+        """
+        return self.weighted_tile_stat(region, 'slope_mean')
+    def par_mean(self, region: Polygon) -> float:
+        """
+        Calculates the area-weighted mean PAR (Photosynthetically Active Radiation) for a region using tile statistics.
+
+        Args:
+            region: The Shapely Polygon defining the area of interest.
+
+        Returns:
+            The area-weighted mean PAR, or NaN if no tiles intersect or total area is zero.
+        """
+        return self.weighted_tile_stat(region, 'par_mean')
 
     # -----------------------------------------------------------------------------
     # 4) Nearest‐neighbor queries on mini‐grids
@@ -653,10 +755,10 @@ class GeospatialAnalyzer:
         if self._minigrids_gdf.empty:
              print("Warning: No mini-grid data loaded.")
              return []
-        if 'site_id' not in self._minigrids_gdf.columns:
-             print("Warning: 'site_id' column not found in mini-grids data. Returning index.")
+        if 'Location' not in self._minigrids_gdf.columns:
+             print("Warning: 'Location' column not found in mini-grids data. Returning index.")
              return self._minigrids_gdf.index.astype(str).tolist()
-        return self._minigrids_gdf["site_id"].tolist()
+        return self._minigrids_gdf["Location"].tolist()
 
     def get_site_geometry(self, site_id: str) -> Optional[Polygon]:
         """
