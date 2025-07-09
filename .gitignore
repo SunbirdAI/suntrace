@@ -9,3 +9,6 @@ __pycache__/
 
 # Ignore all contents in the data folder
 data/
+
+# Ignore copilot chats
+.specstory/
