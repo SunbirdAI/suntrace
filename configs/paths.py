@@ -24,7 +24,7 @@ VILLAGES_PATH = VIZUALIZATION_DIR / "lamwo_villages.geojson"
 PARISHES_PATH = VIZUALIZATION_DIR / "lamwo_parishes.geojson"
 SUBCOUNTIES_PATH = VIZUALIZATION_DIR / "lamwo_subcounties.geojson"
 
-
+#sample for testing
 SAMPLE_REGION_PATH = DATA_DIR / "sample_region_mudu" / "mudu_village.gpkg"
 
 RAW_DATA_DIR = os.path.join(DATA_DIR, 'raw')

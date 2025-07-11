@@ -1,3 +1,18 @@
-/data
+
+# Ignore venv
+venv/
 /.suntrace
-/__pychache__
+.env
+# Ignore Python cache files
+__pycache__/
+*.pyc
+
+# Ignore playground
+
+
+
+# Ignore all contents in the data folder
+data/
+
+# Ignore copilot chats
+.specstory/

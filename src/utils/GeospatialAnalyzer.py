@@ -16,7 +16,7 @@ warnings.filterwarnings("ignore", message="Iteration over dataset of unknown siz
 # Authentication and Initialization (Keep these at the top)
 # Uncomment if you are using Google Earth Engine (GEE)
 # ee.Authenticate() # Keep if you use EE
-# ee.Initialize(project='ee-isekalala') # Keep if you use EE
+# ee.Initialize(project='project-id') # Keep if you use EE
 
 # Assuming pip install rasterio and pip install folium has been run
 
@@ -37,6 +37,14 @@ class GeospatialAnalyzer:
                  minigrids_path: str,
                  tile_stats_path: str,
                  plain_tiles_path: str,
+                 candidate_minigrids_path: str,
+                 existing_minigrids_path: str,
+                 existing_grid_path: str,
+                 grid_extension_path: str,
+                 roads_path: str,
+                 villages_path: str,
+                 parishes_path: str,
+                 subcounties_path: str,
                  database_uri: Optional[str] = None,
                  target_metric_crs: str = "EPSG:32636", # WGS 84 / UTM zone 36N for Uganda
                  target_geographic_crs: str = "EPSG:4326" # WGS84 for visualization
@@ -60,6 +68,17 @@ class GeospatialAnalyzer:
         self._minigrids_gdf: gpd.GeoDataFrame = self._load_and_validate_gdf(minigrids_path, ensure_crs=True)
         self._tile_stats_gdf: gpd.GeoDataFrame = self._load_and_process_tile_stats(tile_stats_path)
         self._plain_tiles_gdf: gpd.GeoDataFrame = self._load_and_validate_gdf(plain_tiles_path, ensure_crs=True)
+        self._candidate_minigrids_gdf: gpd.GeoDataFrame = self._load_and_validate_gdf(candidate_minigrids_path, ensure_crs=True)
+        self._existing_minigrids_gdf: gpd.GeoDataFrame = self._load_and_validate_gdf(existing_minigrids_path, ensure_crs=True)
+        self._existing_grid_gdf: gpd.GeoDataFrame = self._load_and_validate_gdf(existing_grid_path, ensure_crs=True)
+        self._grid_extension_gdf: gpd.GeoDataFrame = self._load_and_validate_gdf(grid_extension_path, ensure_crs=True)
+        self._roads_gdf: gpd.GeoDataFrame = self._load_and_validate_gdf(roads_path, ensure_crs=True)
+        self._villages_gdf: gpd.GeoDataFrame = self._load_and_validate_gdf(villages_path, ensure_crs=True)
+        self._parishes_gdf: gpd.GeoDataFrame = self._load_and_validate_gdf(parishes_path, ensure_crs=True)
+        self._subcounties_gdf: gpd.GeoDataFrame = self._load_and_validate_gdf(subcounties_path, ensure_crs=True)
+        
+
+
 
         # Merge tile stats with plain tiles for easier spatial queries
         self._joined_tiles_gdf = self._merge_tile_data(self._tile_stats_gdf, self._plain_tiles_gdf)
@@ -285,7 +304,16 @@ class GeospatialAnalyzer:
         layer_map = {
             'buildings': self._buildings_gdf,
             'minigrids': self._minigrids_gdf,
-            'tiles': self._joined_tiles_gdf # Use the joined gdf for tile queries
+            'tiles': self._joined_tiles_gdf, # Use the joined gdf for tile queries
+            'roads': self._roads_gdf,
+            'villages': self._villages_gdf,
+            'parishes': self._parishes_gdf,
+            'subcounties': self._subcounties_gdf,
+            'existing_grid': self._existing_grid_gdf,
+            'grid_extension': self._grid_extension_gdf,
+            'candidate_minigrids': self._candidate_minigrids_gdf,
+            'existing_minigrids': self._existing_minigrids_gdf
+            
         }
         if layer_name not in layer_map:
             print(f"Error: Unknown layer name '{layer_name}'. Available layers: {list(layer_map.keys())}")
@@ -328,7 +356,31 @@ class GeospatialAnalyzer:
             A GeoDataFrame containing the intersecting mini-grids and their attributes.
         """
         return self.get_gdf_info_within_region(region, 'minigrids')
-        
+
+    def get_roads_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
+        return self.get_gdf_info_within_region(region, 'roads')
+
+    def get_villages_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
+        return self.get_gdf_info_within_region(region, 'villages')
+
+    def get_parishes_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
+        return self.get_gdf_info_within_region(region, 'parishes')
+
+    def get_subcounties_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
+        return self.get_gdf_info_within_region(region, 'subcounties')
+
+    def get_existing_grid_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
+        return self.get_gdf_info_within_region(region, 'existing_grid')
+
+    def get_grid_extension_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
+        return self.get_gdf_info_within_region(region, 'grid_extension')
+
+    def get_candidate_minigrids_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
+        return self.get_gdf_info_within_region(region, 'candidate_minigrids')
+
+    def get_existing_minigrids_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
+        return self.get_gdf_info_within_region(region, 'existing_minigrids')
+
     # -----------------------------------------------------------------------------
     # 1) Generic vector‐counting primitive
     # -----------------------------------------------------------------------------
@@ -352,7 +404,15 @@ class GeospatialAnalyzer:
         layer_map = {
             'buildings': self._buildings_gdf,
             'minigrids': self._minigrids_gdf,
-            'tiles': self._joined_tiles_gdf # Use the joined gdf for tile queries
+            'tiles': self._joined_tiles_gdf, # Use the joined gdf for tile queries
+            'roads': self._roads_gdf,
+            'villages': self._villages_gdf,
+            'parishes': self._parishes_gdf,
+            'subcounties': self._subcounties_gdf,
+            'existing_grid': self._existing_grid_gdf,
+            'grid_extension': self._grid_extension_gdf,
+            'candidate_minigrids': self._candidate_minigrids_gdf,
+            'existing_minigrids': self._existing_minigrids_gdf
         }
         if layer_name not in layer_map:
             print(f"Error: Unknown layer name '{layer_name}'. Available layers: {list(layer_map.keys())}")
@@ -388,7 +448,7 @@ class GeospatialAnalyzer:
             return 0
 
     # -----------------------------------------------------------------------------
-    # 2) Building‐specific counts
+    # 2) Layer‐specific counts
     # -----------------------------------------------------------------------------
     def count_buildings_within_region(self, region: Polygon) -> int:
         """
@@ -401,7 +461,107 @@ class GeospatialAnalyzer:
             The number of buildings within the region.
         """
         return self.count_features_within_region(region, 'buildings')
+    def count_minigrids_within_region(self, region: Polygon) -> int:
+        """
+        Counts all mini-grids within the region.
 
+        Args:
+            region: The Shapely Polygon defining the area of interest.
+
+        Returns:
+            The number of mini-grids within the region.
+        """
+        return self.count_features_within_region(region, 'minigrids')
+        
+    def count_roads_within_region(self, region: Polygon) -> int:
+        return self.count_features_within_region(region, 'roads')
+
+    def count_villages_within_region(self, region: Polygon) -> int:
+        """
+        Counts all villages within the region.
+
+        Args:
+            region: The Shapely Polygon defining the area of interest.
+
+        Returns:
+            The number of villages within the region.
+        """
+        return self.count_features_within_region(region, 'villages')
+
+    def count_parishes_within_region(self, region: Polygon) -> int:
+        """
+        Counts all parishes within the region.
+
+        Args:
+            region: The Shapely Polygon defining the area of interest.
+
+        Returns:
+            The number of parishes within the region.
+        """
+        return self.count_features_within_region(region, 'parishes')
+
+    def count_subcounties_within_region(self, region: Polygon) -> int:
+        """
+        Counts all subcounties within the region.
+
+        Args:
+            region: The Shapely Polygon defining the area of interest.
+
+        Returns:
+            The number of subcounties within the region.
+        """
+        return self.count_features_within_region(region, 'subcounties')
+
+    def count_existing_grid_within_region(self, region: Polygon) -> int:
+        """
+        Counts all existing grid features within the region.
+
+        Args:
+            region: The Shapely Polygon defining the area of interest.
+
+        Returns:
+            The number of existing grid features within the region.
+        """
+        return self.count_features_within_region(region, 'existing_grid')
+
+    def count_grid_extension_within_region(self, region: Polygon) -> int:
+        """
+        Counts all grid extension features within the region.
+
+        Args:
+            region: The Shapely Polygon defining the area of interest.
+
+        Returns:
+            The number of grid extension features within the region.
+        """
+        return self.count_features_within_region(region, 'grid_extension')
+
+    def count_candidate_minigrids_within_region(self, region: Polygon) -> int:
+        """
+        Counts all candidate mini-grids within the region.
+
+        Args:
+            region: The Shapely Polygon defining the area of interest.
+
+        Returns:
+            The number of candidate mini-grids within the region.
+        """
+        return self.count_features_within_region(region, 'candidate_minigrids')
+
+    def count_existing_minigrids_within_region(self, region: Polygon) -> int:
+        """
+        Counts all existing mini-grids within the region.
+
+        Args:
+            region: The Shapely Polygon defining the area of interest.
+
+        Returns:
+            The number of existing mini-grids within the region.
+        """
+        return self.count_features_within_region(region, 'existing_minigrids')
+
+
+    # -----------------------------------------------------------------------------
     def count_high_ndvi_buildings(self,
         region: Polygon,
         ndvi_threshold: float = 0.4
@@ -468,10 +628,58 @@ class GeospatialAnalyzer:
              return 0
 
 
+
+
+
     # -----------------------------------------------------------------------------
     # 3) NDVI & other tile‐based stats
     # -----------------------------------------------------------------------------
-    def avg_tile_stat(self, region: Polygon, stat: str) -> float:
+    def weighted_tile_stats_all(self, region: Polygon) -> Dict[str, float]:
+        """
+        Calculates area-weighted averages for all numeric columns in the joined tiles GeoDataFrame
+        for the given region.
+
+        Args:
+            region: The Shapely Polygon defining the area of interest.
+
+        Returns:
+            A dictionary mapping each numeric column name to its area-weighted average,
+            or NaN if no tiles intersect or total area is zero.
+        """
+        if self._joined_tiles_gdf.empty:
+            print("Error: Joined tiles data is empty.")
+            return {}
+
+        gdf = self._joined_tiles_gdf.copy()
+        tiles_m = self._check_and_reproject_gdf(gdf, self.target_metric_crs)
+        region_m, _ = self._prepare_geometry_for_crs(region, self.target_metric_crs)
+        region_m_geom = region_m.geometry.iloc[0]
+
+        tiles = tiles_m.loc[tiles_m.intersects(region_m_geom)]
+
+        if tiles.empty:
+            return {}
+
+        try:
+            tiles = tiles.copy()
+            tiles["intersect_area"] = tiles.geometry.intersection(region_m_geom).area
+            total_area = tiles["intersect_area"].sum()
+            if total_area == 0:
+                return {}
+
+            # Select numeric columns (excluding geometry and intersect_area)
+            numeric_cols = tiles.select_dtypes(include=[np.number]).columns
+            numeric_cols = [col for col in numeric_cols if col not in ["intersect_area"]]
+
+            weighted_stats = {}
+            for col in numeric_cols:
+                weighted_sum = (tiles[col] * tiles["intersect_area"]).sum()
+                weighted_stats[col] = weighted_sum / total_area if total_area > 0 else float("nan")
+            return weighted_stats
+        except Exception as e:
+            print(f"Error calculating area-weighted averages for all stats: {e}")
+            return {}
+    def weighted_tile_stat(self, region: Polygon, stat: str) -> float:
         """
         Calculates the area-weighted average statistic for a region using tile statistics.
 
@@ -519,64 +727,7 @@ class GeospatialAnalyzer:
         Returns:
             The area-weighted average NDVI, or NaN if no tiles intersect or total area is zero.
         """
-        return self.avg_tile_stat(region, 'ndvi_mean')
-    def cf_days(self, region: Polygon) -> float:
-        """
-        Calculates the mean total cloud-free days for a region using tile statistics.
-
-        Args:
-            region: The Shapely Polygon defining the area of interest.
-
-        Returns:
-            The mean total cloud-free days, or NaN if no tiles intersect or total area is zero.
-        """
-        return self.avg_tile_stat(region, 'cf_days')
-    def evi_med(self, region: Polygon) -> float:
-        """
-        Calculates the area-weighted median EVI for a region using tile statistics.
-
-        Args:
-            region: The Shapely Polygon defining the area of interest.
-
-        Returns:
-            The area-weighted median EVI, or NaN if no tiles intersect or total area is zero.
-        """
-        return self.avg_tile_stat(region, 'evi_med')
-    def elev_mean(self, region: Polygon) -> float:
-        """
-        Calculates the area-weighted mean elevation for a region using tile statistics.
-
-        Args:
-            region: The Shapely Polygon defining the area of interest.
-
-        Returns:
-            The area-weighted mean elevation, or NaN if no tiles intersect or total area is zero.
-        """
-        return self.avg_tile_stat(region, 'elev_mean')
-    def slope_mean(self, region: Polygon) -> float:
-        """
-        Calculates the area-weighted mean slope for a region using tile statistics.
-
-        Args:
-            region: The Shapely Polygon defining the area of interest.
-
-        Returns:
-            The area-weighted mean slope, or NaN if no tiles intersect or total area is zero.
-        """
-        return self.avg_tile_stat(region, 'slope_mean')
-    def par_mean(self, region: Polygon) -> float:
-        """
-        Calculates the area-weighted mean PAR (Photosynthetically Active Radiation) for a region using tile statistics.
-
-        Args:
-            region: The Shapely Polygon defining the area of interest.
-
-        Returns:
-            The area-weighted mean PAR, or NaN if no tiles intersect or total area is zero.
-        """
-        return self.avg_tile_stat(region, 'par_mean')
-    
-
+        return self.weighted_tile_stat(region, 'ndvi_mean')
     def ndvi_stats(self, region: Polygon) -> Dict[str, float]:
         """
         Calculates descriptive statistics (mean, median, std) for NDVI
@@ -600,17 +751,72 @@ class GeospatialAnalyzer:
 
         # Ensure consistent CRS for tile intersection with the region
         mean = self.avg_ndvi(region)
-        median = self.avg_tile_stat(region, 'ndvi_med')
-        std = self.avg_tile_stat(region, 'ndvi_std')
+        median = self.weighted_tile_stat(region, 'ndvi_med')
+        std = self.weighted_tile_stat(region, 'ndvi_std')
         
         return {
             "NDVI_mean": (mean),
             "NDVI_med": (median),
             "NDVI_std": (std),
-        }
+        }    
+    def evi_med(self, region: Polygon) -> float:
+        """
+        Calculates the area-weighted median EVI for a region using tile statistics.
+
+        Args:
+            region: The Shapely Polygon defining the area of interest.
+
+        Returns:
+            The area-weighted median EVI, or NaN if no tiles intersect or total area is zero.
+        """
+        return self.weighted_tile_stat(region, 'evi_med')
+    def cf_days(self, region: Polygon) -> float:
+        """
+        Calculates the mean total cloud-free days for a region using tile statistics.
+
+        Args:
+            region: The Shapely Polygon defining the area of interest.
+
+        Returns:
+            The mean total cloud-free days, or NaN if no tiles intersect or total area is zero.
+        """
+        return self.weighted_tile_stat(region, 'cf_days')
+    def elev_mean(self, region: Polygon) -> float:
+        """
+        Calculates the area-weighted mean elevation for a region using tile statistics.
+
+        Args:
+            region: The Shapely Polygon defining the area of interest.
+
+        Returns:
+            The area-weighted mean elevation, or NaN if no tiles intersect or total area is zero.
+        """
+        return self.weighted_tile_stat(region, 'elev_mean')
+    def slope_mean(self, region: Polygon) -> float:
+        """
+        Calculates the area-weighted mean slope for a region using tile statistics.
+
+        Args:
+            region: The Shapely Polygon defining the area of interest.
+
+        Returns:
+            The area-weighted mean slope, or NaN if no tiles intersect or total area is zero.
+        """
+        return self.weighted_tile_stat(region, 'slope_mean')
+    def par_mean(self, region: Polygon) -> float:
+        """
+        Calculates the area-weighted mean PAR (Photosynthetically Active Radiation) for a region using tile statistics.
+
+        Args:
+            region: The Shapely Polygon defining the area of interest.
+
+        Returns:
+            The area-weighted mean PAR, or NaN if no tiles intersect or total area is zero.
+        """
+        return self.weighted_tile_stat(region, 'par_mean')
 
     # -----------------------------------------------------------------------------
-    # 4) Nearest‐neighbor queries on mini‐grids
+    # 4) Get Layer Geoms and Nearest‐neighbor queries
     # -----------------------------------------------------------------------------
     def list_mini_grids(self) -> List[str]:
         """
@@ -627,32 +833,36 @@ class GeospatialAnalyzer:
              return self._minigrids_gdf.index.astype(str).tolist()
         return self._minigrids_gdf["Location"].tolist()
 
-    def get_site_geometry(self, site_id: str) -> Optional[Polygon]:
+    def get_layer_geometry(self, layer_name: str, region: base.BaseGeometry) -> Optional[Polygon]:
         """
-        Returns the Shapely geometry for a given mini-grid site_id.
+        Returns the Shapely geometry for a feature of a given layer.
+
+
+        Uses the layer_map to access the appropriate GeoDataFrame based on layer_name.
+            layer_map = {
+            'buildings': self._buildings_gdf,
+            'minigrids': self._minigrids_gdf,
+            'tiles': self._joined_tiles_gdf, # Use the joined gdf for tile queries
+            'roads': self._roads_gdf,
+            'villages': self._villages_gdf,
+            'parishes': self._parishes_gdf,
+            'subcounties': self._subcounties_gdf,
+            'existing_grid': self._existing_grid_gdf,
+            'grid_extension': self._grid_extension_gdf,
+            'candidate_minigrids': self._candidate_minigrids_gdf,
+            'existing_minigrids': self._existing_minigrids_gdf
+        }
 
         Args:
-            site_id: The ID of the mini-grid site.
+            layer_name: The name of the layer.
+            region: The Shapely Polygon or Point defining the area of interest.
 
         Returns:
-            The Shapely Polygon geometry, or None if the site_id is not found.
+            The Shapely Polygon geometry, or None if the id is not found.
         """
-        if self._minigrids_gdf.empty or 'ID' not in self._minigrids_gdf.columns:
-            print("Error: Mini-grid data is empty or missing 'ID' column for get_site_geometry.")
-            return None
-        # Convert site_id to match the column's dtype if necessary
-        try:
-            if self._minigrids_gdf['ID'].dtype in ['int64', 'int32', 'int']:
-                site_id = int(site_id)
-        except ValueError:
-            print(f"Error: Could not convert site_id '{site_id}' to integer.")
-            return None
-        row = self._minigrids_gdf[self._minigrids_gdf["ID"] == site_id]
-        if not row.empty:
-            return row.geometry.values[0]
-        else:
-            print(f"Warning: Mini-grid site ID '{site_id}' not found.")
-            return None
+        ### YOUR IMPLEMENTATION HERE ###
+        
+        return None
 
     def nearest_mini_grids(self,
         pt: Point,

@@ -1,0 +1,23 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Run Tests",
+			"type": "shell",
+			"command": "/Users/Imran/miniconda3/bin/python",
+			"args": [
+				"-m",
+				"pytest",
+				"tests/",
+				"-v",
+				"-m",
+				"not slow and not integration"
+			],
+			"group": "test",
+			"isBackground": false,
+			"problemMatcher": [
+				"$pytest"
+			]
+		}
+	]
+}
