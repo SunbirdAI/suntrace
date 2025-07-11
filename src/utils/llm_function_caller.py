@@ -10,41 +10,82 @@ import unicodedata
 # ── 1) define tools ──────────────────────────────────────────────────────────
 tools = [
     {
-      "name": "count_features_within_region",
-      "description": "Counts features in a specified geospatial layer that intersect with a given region. Can filter features based on a query expression.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "region": {
-            "type": "string",
-            "description": "The area as a Shapely Polygon in WKT format."
-          },
-          "layer_name": {
-            "type": "string",
-            "enum": ["minigrids", "tiles", "roads", "solar_panels", "administrative_boundaries"]
-          },
-          "filter_expr": {
-            "type": "string",
-            "description": "Optional pandas-style filter (e.g. \"type=='residential'\")."
-          }
+        "name": "count_features_within_region",
+        "description": "Counts features in a specified geospatial layer that intersect with a given region. Can filter features based on a query expression.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "region": {
+                    "type": "string",
+                    "description": "The area as a Shapely Polygon in WKT format.",
+                },
+                "layer_name": {
+                    "type": "string",
+                    "enum": [
+                        "minigrids",
+                        "tiles",
+                        "roads",
+                        # "solar_panels",
+                        # "administrative_boundaries"
+                        "candidate_minigrids",
+                        "existing_minigrids",
+                        "parishes",
+                    ],
+                },
+                "filter_expr": {
+                    "type": "string",
+                    "description": "Optional pandas-style filter (e.g. \"type=='residential'\").",
+                },
+            },
+            "required": ["region", "layer_name"],
         },
-        "required": ["region", "layer_name"]
-      }
     },
     {
-      "name": "count_buildings_within_region",
-      "description": "Counts all building footprints within a given geographic region.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "region": {
-            "type": "string",
-            "description": "The area as a Shapely Polygon in WKT format."
-          }
+        "name": "count_buildings_within_region",
+        "description": "Counts all building footprints within a given geographic region.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "region": {
+                    "type": "string",
+                    "description": "The area as a Shapely Polygon in WKT format.",
+                }
+            },
+            "required": ["region"],
         },
-        "required": ["region"]
-      }
     },
+
+     {
+         
+        "name": "count_parishes_within_region",
+        "description": "Counts all parishes within a given geographic region.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "region": {
+                    "type": "string",
+                    "description": "The area as a Shapely Polygon in WKT format.",
+                }
+            },
+            "required": ["region"],
+        },
+    },
+
+      {
+        "name": "count_candidate_minigrids_within_region",
+        "description": "Counts all candidate minigrids within a given geographic region.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "region": {
+                    "type": "string",
+                    "description": "The area as a Shapely Polygon in WKT format.",
+                }
+            },
+            "required": ["region"],
+        },
+    },
+
 ]
 
 
@@ -53,36 +94,42 @@ def handle_tool_call(tool_name, parameters, geospatial_analyzer=None):
     if geospatial_analyzer is None:
         # Fallback to creating a new instance if needed
         from utils.factory import create_geospatial_analyzer
+
         geospatial_analyzer = create_geospatial_analyzer()
 
     try:
         region = wkt_loads(parameters["region"])
         if tool_name == "count_features_within_region":
             return geospatial_analyzer.count_features_within_region(
-                region, 
-                parameters["layer_name"], 
-                parameters.get("filter_expr")
+                region, parameters["layer_name"], parameters.get("filter_expr")
             )
         elif tool_name == "count_buildings_within_region":
             return geospatial_analyzer.count_buildings_within_region(region)
+        elif tool_name == "count_parishes_within_region":
+            return geospatial_analyzer.count_parishes_within_region(region)
+        elif tool_name == "count_candidate_minigrids_within_region":
+            return geospatial_analyzer.count_candidate_minigrids_within_region(region)
+
         else:
             raise ValueError(f"Unknown tool: {tool_name}")
     except Exception as e:
         return {"error": str(e)}
 
+
 # ── 4) helper to run a single user query ─────────────────────────────────────
 def ask_with_functions(user_prompt, analyzer=None):
     # Sanitize the user prompt to remove problematic Unicode characters
-    user_prompt = unicodedata.normalize("NFKD", user_prompt).encode("ascii", "ignore").decode("ascii")
+    user_prompt = (
+        unicodedata.normalize("NFKD", user_prompt)
+        .encode("ascii", "ignore")
+        .decode("ascii")
+    )
 
     # start with just the user message
     messages = [{"role": "user", "content": user_prompt}]
     # 1st call: let the model decide if it needs a function
     response = openai.ChatCompletion.create(
-        model="gpt-4o-mini",
-        messages=messages,
-        functions=tools,
-        function_call="auto"
+        model="gpt-4o-mini", messages=messages, functions=tools, function_call="auto"
     )
     msg = response.choices[0].message
 
@@ -96,21 +143,17 @@ def ask_with_functions(user_prompt, analyzer=None):
 
         # add the tool call and its result into the conversation
         messages.append(msg)  # the function_call request
-        messages.append({
-            "role": "function",
-            "name": name,
-            "content": json.dumps(result)
-        })
+        messages.append(
+            {"role": "function", "name": name, "content": json.dumps(result)}
+        )
 
         # 2nd call: let the model produce a final answer
-        second = openai.ChatCompletion.create(
-            model="gpt-4o-mini",
-            messages=messages
-        )
+        second = openai.ChatCompletion.create(model="gpt-4o-mini", messages=messages)
         return second.choices[0].message.content
 
     # otherwise, just return the content
     return msg.content
+
 
 # ── 5) how to supply a dynamic region ────────────────────────────────────────
 # Sample code is commented out to avoid running on import
