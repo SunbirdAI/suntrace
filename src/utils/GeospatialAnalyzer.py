@@ -833,25 +833,36 @@ class GeospatialAnalyzer:
              return self._minigrids_gdf.index.astype(str).tolist()
         return self._minigrids_gdf["Location"].tolist()
 
-    def get_layer_geometry(self, layer_id: str, region: Polygon) -> Optional[Polygon]:
+    def get_layer_geometry(self, layer_name: str, region: base.BaseGeometry) -> Optional[Polygon]:
         """
-        Returns the Shapely geometry for a given layer.
+        Returns the Shapely geometry for a feature of a given layer.
+
+
+        Uses the layer_map to access the appropriate GeoDataFrame based on layer_name.
+            layer_map = {
+            'buildings': self._buildings_gdf,
+            'minigrids': self._minigrids_gdf,
+            'tiles': self._joined_tiles_gdf, # Use the joined gdf for tile queries
+            'roads': self._roads_gdf,
+            'villages': self._villages_gdf,
+            'parishes': self._parishes_gdf,
+            'subcounties': self._subcounties_gdf,
+            'existing_grid': self._existing_grid_gdf,
+            'grid_extension': self._grid_extension_gdf,
+            'candidate_minigrids': self._candidate_minigrids_gdf,
+            'existing_minigrids': self._existing_minigrids_gdf
+        }
 
         Args:
-            layer_id: The ID of the layer.
+            layer_name: The name of the layer.
+            region: The Shapely Polygon or Point defining the area of interest.
 
         Returns:
             The Shapely Polygon geometry, or None if the id is not found.
         """
-        if self._minigrids_gdf.empty or 'site_id' not in self._minigrids_gdf.columns:
-             print("Error: Mini-grid data is empty or missing 'site_id' for get_site_geometry.")
-             return None
-        row = self._minigrids_gdf[self._minigrids_gdf["site_id"] == layer_id]
-        if not row.empty:
-            return row.geometry.values[0]
-        else:
-            print(f"Warning: Mini-grid site ID '{layer_id}' not found.")
-            return None
+        ### YOUR IMPLEMENTATION HERE ###
+        
+        return None
 
     def nearest_mini_grids(self,
         pt: Point,
