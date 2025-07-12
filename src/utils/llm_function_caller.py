@@ -21,8 +21,10 @@ tools = [
           },
           "layer_name": {
             "type": "string",
-            "enum": ["minigrids", "tiles", "roads", "subcounties"]
+            "enum": ["minigrids", "tiles", "roads", "subcounties", "grid_extension", "existing_grids", "villages", "buildings"],
+            "description": "The name of the layer to count features from."
           },
+          
           "filter_expr": {
             "type": "string",
             "description": "Optional pandas-style filter (e.g. \"type=='residential'\")."
@@ -46,8 +48,8 @@ tools = [
       }
     },
     {
-      "name": "count_buildings_within_region",
-      "description": "Counts all building footprints within a given geographic region.",
+      "name": "count_existing_grids_within_region",
+      "description": "Counts all existing_grids within a given geographic region.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -60,8 +62,8 @@ tools = [
       }
     },
     {
-      "name": "count_buildings_within_region",
-      "description": "Counts all building footprints within a given geographic region.",
+      "name": "count_grid_extension_within_region",
+      "description": "Counts all grid_extension within a given geographic region.",
       "parameters": {
         "type": "object",
         "properties": {
