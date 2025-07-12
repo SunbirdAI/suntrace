@@ -21,7 +21,7 @@ tools = [
           },
           "layer_name": {
             "type": "string",
-            "enum": ["minigrids", "tiles", "roads", "solar_panels", "administrative_boundaries"]
+            "enum": ["minigrids", "tiles", "roads", "subcounties"]
           },
           "filter_expr": {
             "type": "string",
@@ -45,6 +45,63 @@ tools = [
         "required": ["region"]
       }
     },
+    {
+      "name": "count_buildings_within_region",
+      "description": "Counts all building footprints within a given geographic region.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "region": {
+            "type": "string",
+            "description": "The area as a Shapely Polygon in WKT format."
+          }
+        },
+        "required": ["region"]
+      }
+    },
+    {
+      "name": "count_buildings_within_region",
+      "description": "Counts all building footprints within a given geographic region.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "region": {
+            "type": "string",
+            "description": "The area as a Shapely Polygon in WKT format."
+          }
+        },
+        "required": ["region"]
+      }
+    },
+    {
+      "name": "count_villages_within_region",
+      "description": "Counts all villages within a given geographic region.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "region": {
+            "type": "string",
+            "description": "The area as a Shapely Polygon in WKT format."
+          }
+        },
+        "required": ["region"]
+      }
+    },
+    {
+      "name": "count_subcounties_within_region",
+      "description": "Counts all subcounties within a given geographic region.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "region": {
+            "type": "string",
+            "description": "The area as a Shapely Polygon in WKT format."
+          }
+        },
+        "required": ["region"]
+      }
+    },
+    
 ]
 
 
@@ -65,6 +122,18 @@ def handle_tool_call(tool_name, parameters, geospatial_analyzer=None):
             )
         elif tool_name == "count_buildings_within_region":
             return geospatial_analyzer.count_buildings_within_region(region)
+        elif tool_name == "count_subcounties_within_region":
+            return geospatial_analyzer.count_features_within_region(region)
+        elif tool_name == "count_villages_within_region":
+            return geospatial_analyzer.count_villages_within_region(region)
+        elif tool_name == "count_existing_grid_within_region":
+            return geospatial_analyzer.count_existing_grid_within_region(region)
+        elif tool_name == "count_grid_extension_within_region":
+            return geospatial_analyzer.count_grid_extension_within_region(region)
+
+        
+       
+        
         else:
             raise ValueError(f"Unknown tool: {tool_name}")
     except Exception as e:
