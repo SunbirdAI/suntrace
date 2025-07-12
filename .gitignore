@@ -7,10 +7,6 @@ venv/
 __pycache__/
 *.pyc
 
-# Ignore playground
-
-
-
 # Ignore all contents in the data folder
 data/
 

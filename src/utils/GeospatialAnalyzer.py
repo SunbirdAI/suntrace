@@ -861,8 +861,10 @@ class GeospatialAnalyzer:
             The Shapely Polygon geometry, or None if the id is not found.
         """
         ### YOUR IMPLEMENTATION HERE ###
+        gdf = self.get_gdf_info_within_region(region, layer_name)
+        return gdf.geometry.unary_union if not gdf.empty else None
         
-        return None
+        # return None
 
     def nearest_mini_grids(self,
         pt: Point,
