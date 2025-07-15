@@ -861,8 +861,11 @@ class GeospatialAnalyzer:
             The Shapely Polygon geometry, or None if the id is not found.
         """
         ### YOUR IMPLEMENTATION HERE ###
+        gdf = self.get_gdf_info_within_region(region, layer_name)
+        if gdf.empty: return None
+        return gdf.geometry.unary_union
+
         
-        return None
 
     def nearest_mini_grids(self,
         pt: Point,
@@ -905,33 +908,6 @@ class GeospatialAnalyzer:
         except Exception as e:
              print(f"Error finding nearest mini-grids: {e}")
              return []
-    def compute_distance_to_grid(self, geom: base.BaseGeometry) -> float:
-        """
-        Computes the distance from a geometry to the nearest existing grid feature.
-
-        Args:
-            geom: The Shapely geometry (Point, LineString, or Polygon) to measure distance from.
-
-        Returns:
-            The distance in meters to the nearest existing grid feature, or NaN if no grid features are available.
-        """
-        if self._existing_grid_gdf.empty:
-             print("Warning: No existing grid data loaded for compute_distance_to_grid.")
-             return float("nan")
-
-        # Ensure existing grid GeoDataFrame is in a metric CRS for accurate distance calculation
-        existing_grid_metric = self._check_and_reproject_gdf(self._existing_grid_gdf.copy(), self.target_metric_crs)
-
-        # Ensure the input geometry is also in the same metric CRS
-        geom_metric, _ = self._prepare_geometry_for_crs(geom, self.target_metric_crs)
-        geometry = geom_metric.geometry.iloc[0]
-
-        try:
-            distances = existing_grid_metric.geometry.distance(geometry)
-            return distances.min() if not distances.empty else float("nan")
-        except Exception as e:
-             print(f"Error computing distance to existing grid: {e}")
-             return float("nan")
 
 
     # -----------------------------------------------------------------------------
