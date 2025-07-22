@@ -144,8 +144,8 @@
                         <span>Drawn Region</span>
                     </div>
                     <div class="legend-item">
-                        <div class="legend-color" style="background-color: #ff0000;"></div>
-                        <span>Mini-grids</span>
+                        <div class="legend-color" style="background-color: #00aaff;"></div>
+                        <span>CandidateMini-grids</span>
                     </div>
                     <div class="legend-item">
                         <div class="legend-color" style="background-color: #444444;"></div>
@@ -172,7 +172,7 @@
     <script>
         let map;
         let drawnItems = new L.FeatureGroup();
-        let minigridsLayer = L.featureGroup();
+        let candidateMinigridsLayer = L.featureGroup();
         let buildingsLayer = L.featureGroup();
         let currentDrawnPolygon = null;
 
@@ -241,8 +241,8 @@
                 }
                 
                 // Add minigrids layer
-                if (data.minigrids) {
-                    L.geoJSON(data.minigrids, {
+                if (data.candidate_minigrids) {
+                    L.geoJSON(data.candidate_minigrids, {
                         style: {
                             color: "#ff0000",
                             weight: 2,
@@ -251,10 +251,10 @@
                         },
                         onEachFeature: function(feature, layer) {
                             if (feature.properties && feature.properties.name) {
-                                layer.bindPopup(`Minigrid: ${feature.properties.name}`);
+                                layer.bindPopup(`Candidate Minigrid: ${feature.properties.name}`);
                             }
                         }
-                    }).addTo(minigridsLayer);
+                    }).addTo(candidateMinigridsLayer);
                 }
                 
                 // Add buildings layer
@@ -270,12 +270,12 @@
                 }
                 
                 // Add layers to map
-                minigridsLayer.addTo(map);
+                candidateMinigridsLayer.addTo(map);
                 buildingsLayer.addTo(map);
                 
                 // Add layer controls
                 const overlayMaps = {
-                    "Minigrids": minigridsLayer,
+                    "Candidate Minigrids": candidateMinigridsLayer,
                     "Buildings": buildingsLayer
                 };
                 L.control.layers(null, overlayMaps).addTo(map);

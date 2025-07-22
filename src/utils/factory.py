@@ -12,7 +12,6 @@ from configs import paths
 
 def create_geospatial_analyzer(bpath=None, mpath=None, tpath=None, ppath=None, cmpath=None, empath=None, egpath=None, gepath=None, rpath=None, vdir=None, vpath=None, papath=None, spath=None, sr=None):
     buildings_path = os.path.join(os.path.dirname(__file__), "../../data/" + bpath) if bpath else paths.BUILDINGS_PATH
-    minigrids_path = os.path.join(os.path.dirname(__file__), "../../data/" + mpath) if mpath else paths.MINIGRIDS_PATH
     tile_stats_path = os.path.join(os.path.dirname(__file__), "../../data/" + tpath) if tpath else paths.TILE_STATS_PATH
     plain_tiles_path = os.path.join(os.path.dirname(__file__), "../../data/" + ppath) if ppath else paths.PLAIN_TILES_PATH
     candidate_minigrids_path = os.path.join(os.path.dirname(__file__), "../../data/" + cmpath) if cmpath else paths.CANDIDATE_MINIGRIDS_PATH
@@ -28,7 +27,6 @@ def create_geospatial_analyzer(bpath=None, mpath=None, tpath=None, ppath=None, c
 
     return GeospatialAnalyzer(
         buildings_path=buildings_path,
-        minigrids_path=minigrids_path,
         tile_stats_path=tile_stats_path,
         plain_tiles_path=plain_tiles_path,
         candidate_minigrids_path=candidate_minigrids_path,

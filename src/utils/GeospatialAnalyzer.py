@@ -1,5 +1,7 @@
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, Any
 import geopandas as gpd
+import pandas as pd
+
 from shapely.geometry import Polygon, Point, base
 import rasterio
 import numpy as np
@@ -34,7 +36,6 @@ class GeospatialAnalyzer:
     """
     def __init__(self,
                  buildings_path: str,
-                 minigrids_path: str,
                  tile_stats_path: str,
                  plain_tiles_path: str,
                  candidate_minigrids_path: str,
@@ -65,7 +66,6 @@ class GeospatialAnalyzer:
         self.target_geographic_crs = target_geographic_crs
 
         self._buildings_gdf: gpd.GeoDataFrame = self._load_and_validate_gdf(buildings_path, ensure_crs=True)
-        self._minigrids_gdf: gpd.GeoDataFrame = self._load_and_validate_gdf(minigrids_path, ensure_crs=True)
         self._tile_stats_gdf: gpd.GeoDataFrame = self._load_and_process_tile_stats(tile_stats_path)
         self._plain_tiles_gdf: gpd.GeoDataFrame = self._load_and_validate_gdf(plain_tiles_path, ensure_crs=True)
         self._candidate_minigrids_gdf: gpd.GeoDataFrame = self._load_and_validate_gdf(candidate_minigrids_path, ensure_crs=True)
@@ -89,7 +89,7 @@ class GeospatialAnalyzer:
 
         print("Geospatial data loading and initial processing complete.")
         print(f"Buildings CRS: {self._buildings_gdf.crs}")
-        print(f"Minigrids CRS: {self._minigrids_gdf.crs}")
+        print(f"Candidate Minigrids CRS: {self._candidate_minigrids_gdf.crs}")
         print(f"Plain Tiles CRS: {self._plain_tiles_gdf.crs}") # Assuming all are same after merge
         if not self._joined_tiles_gdf.empty:
             print(f"Joined Tiles CRS: {self._joined_tiles_gdf.crs}")
@@ -303,7 +303,6 @@ class GeospatialAnalyzer:
         """
         layer_map = {
             'buildings': self._buildings_gdf,
-            'minigrids': self._minigrids_gdf,
             'tiles': self._joined_tiles_gdf, # Use the joined gdf for tile queries
             'roads': self._roads_gdf,
             'villages': self._villages_gdf,
@@ -327,7 +326,7 @@ class GeospatialAnalyzer:
             if filter_expr:
                 gdf = gdf.query(filter_expr)
             intersecting_features = gdf.loc[gdf.intersects(region_geom)]
-            return intersecting_features
+            return intersecting_features # Return as JSON for serialization by LLM
         except Exception as e:
             print(f"Error finding features within region: {e}")
             return gpd.GeoDataFrame(columns=['geometry'], geometry='geometry')
@@ -345,18 +344,6 @@ class GeospatialAnalyzer:
         """
         return self.get_gdf_info_within_region(region, 'tiles')
         
-    def get_minigrids_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
-        """
-        Returns a GeoDataFrame of mini-grids whose geometry intersects the given region.
-
-        Args:
-            region: The Shapely Polygon defining the area of interest.
-
-        Returns:
-            A GeoDataFrame containing the intersecting mini-grids and their attributes.
-        """
-        return self.get_gdf_info_within_region(region, 'minigrids')
-
     def get_roads_info_within_region(self, region: Polygon) -> gpd.GeoDataFrame:
         return self.get_gdf_info_within_region(region, 'roads')
 
@@ -403,7 +390,6 @@ class GeospatialAnalyzer:
         """
         layer_map = {
             'buildings': self._buildings_gdf,
-            'minigrids': self._minigrids_gdf,
             'tiles': self._joined_tiles_gdf, # Use the joined gdf for tile queries
             'roads': self._roads_gdf,
             'villages': self._villages_gdf,
@@ -461,17 +447,6 @@ class GeospatialAnalyzer:
             The number of buildings within the region.
         """
         return self.count_features_within_region(region, 'buildings')
-    def count_minigrids_within_region(self, region: Polygon) -> int:
-        """
-        Counts all mini-grids within the region.
-
-        Args:
-            region: The Shapely Polygon defining the area of interest.
-
-        Returns:
-            The number of mini-grids within the region.
-        """
-        return self.count_features_within_region(region, 'minigrids')
         
     def count_roads_within_region(self, region: Polygon) -> int:
         return self.count_features_within_region(region, 'roads')
@@ -825,13 +800,13 @@ class GeospatialAnalyzer:
         Returns:
             A list of mini-grid site IDs.
         """
-        if self._minigrids_gdf.empty:
+        if self._existing_minigrids_gdf.empty:
              print("Warning: No mini-grid data loaded.")
              return []
         if 'Location' not in self._minigrids_gdf.columns:
              print("Warning: 'Location' column not found in mini-grids data. Returning index.")
              return self._minigrids_gdf.index.astype(str).tolist()
-        return self._minigrids_gdf["Location"].tolist()
+        return self._existing_minigrids_gdf["Location"].tolist()
 
     def get_layer_geometry(self, layer_name: str, region: base.BaseGeometry) -> Optional[Polygon]:
         """
@@ -882,12 +857,12 @@ class GeospatialAnalyzer:
             A list of tuples (site_id, distance_meters). Returns an empty list
             if no mini-grids are available or an error occurs.
         """
-        if self._minigrids_gdf.empty:
+        if self._existing_minigrids_gdf.empty:
              print("Warning: No mini-grid data loaded for nearest_mini_grids.")
              return []
 
         # Ensure minigrids GeoDataFrame is in a metric CRS for accurate distance calculation
-        minigrids_metric = self._check_and_reproject_gdf(self._minigrids_gdf.copy(), self.target_metric_crs)
+        minigrids_metric = self._check_and_reproject_gdf(self._existing_minigrids_gdf.copy(), self.target_metric_crs)
 
         # Ensure the query point is also in the same metric CRS
         point_metric, _ = self._prepare_geometry_for_crs(pt, self.target_metric_crs)
@@ -936,6 +911,168 @@ class GeospatialAnalyzer:
         except Exception as e:
              print(f"Error computing distance to existing grid: {e}")
              return float("nan")
+
+
+    # -----------------------------------------------------------------------------
+    # 5) Region Analysis
+    # -----------------------------------------------------------------------------
+    def _analyze_settlements_in_region(self, region: Polygon) -> Dict[str, Any]:
+        """Analyzes building data and settlement patterns within the region."""
+        # Get buildings data
+        buildings_gdf = self.get_gdf_info_within_region(region, 'buildings')
+        
+        # Calculate total buildings
+        total_buildings = len(buildings_gdf)
+        
+        # Calculate buildings by category
+        building_categories = {}
+        for category in buildings_gdf['category'].dropna().unique():
+            count = len(buildings_gdf[buildings_gdf['category'] == category])
+            building_categories[str(category)] = count
+        
+        # Get total residential buildings (those with no category)
+        residential_count = len(buildings_gdf[buildings_gdf['category'].isna()])
+        if residential_count > 0:
+            building_categories["residential"] = residential_count
+        
+        # Get villages data
+        villages_gdf = self.get_gdf_info_within_region(region, 'villages')
+        village_data = []
+        
+        # Process villages (limit to maximum 20 villages for LLM consumption)
+        for _, village in villages_gdf.head(20).iterrows():
+            village_info = {
+                "name": village.get("addr_vname", "Unnamed"),
+                "electrification_category": village.get("category", "Unknown")
+            }
+            
+            # Add rank information for candidate minigrids
+            if village.get("category") == "Candidate minigrid" and not pd.isna(village.get("rank")):
+                village_info["priority_rank"] = int(village.get("rank"))
+            
+            village_data.append(village_info)
+        
+        return {
+            "building_count": total_buildings,
+            "building_categories": building_categories,
+            "village_count": len(villages_gdf),
+            "village_details": village_data,
+            "has_truncated_villages": len(villages_gdf) > 20
+        }
+    
+    def _analyze_infrastructure_in_region(self, region: Polygon) -> Dict[str, Any]:
+        """Analyzes infrastructure elements including roads, grid, and energy systems."""
+        # Road analysis
+        roads_gdf = self.get_gdf_info_within_region(region, 'roads')
+        road_types = {}
+        
+        for highway_type in roads_gdf['highway'].dropna().unique():
+            count = len(roads_gdf[roads_gdf['highway'] == highway_type])
+            road_types[str(highway_type)] = count
+            
+        # Grid infrastructure analysis
+        grid_present = self.count_existing_grid_within_region(region) > 0
+        grid_extension = self.count_grid_extension_within_region(region) > 0
+        
+        # Candidate minigrids
+        candidate_minigrids_gdf = self.get_gdf_info_within_region(region, 'candidate_minigrids')
+        existing_minigrids_gdf = self.get_gdf_info_within_region(region, 'existing_minigrids')
+        
+        # Calculate total population to be served
+        population_to_be_served = candidate_minigrids_gdf['Population'].sum()
+        
+        # Process capacity information
+        capacity_data = {}
+        for capacity in candidate_minigrids_gdf['capacity'].dropna().unique():
+            count = len(candidate_minigrids_gdf[candidate_minigrids_gdf['capacity'] == capacity])
+            capacity_data[str(capacity)] = count
+            
+        return {
+            "roads": {
+                "total_road_segments": len(roads_gdf),
+                "road_types": road_types
+            },
+            "electricity": {
+                "existing_grid_present": grid_present,
+                "grid_extension_proposed": grid_extension,
+                "candidate_minigrids_count": len(candidate_minigrids_gdf),
+                "existing_minigrids_count": len(existing_minigrids_gdf),
+                "capacity_distribution": capacity_data,
+                "population_to_be_served": int(population_to_be_served)
+            }
+        }
+    
+    def _analyze_administrative_divisions(self, region: Polygon) -> Dict[str, Any]:
+        """Analyzes administrative boundaries within the region."""
+        # Get parishes and subcounties
+        parishes_gdf = self.get_gdf_info_within_region(region, 'parishes')
+        subcounties_gdf = self.get_gdf_info_within_region(region, 'subcounties')
+        
+        # Process parish information
+        parish_data = []
+        for _, parish in parishes_gdf.iterrows():
+            parish_data.append({
+                "name": parish.get("addr_pname", "Unnamed"),
+                "electrification_category": parish.get("category", "Unknown")
+            })
+            
+        # Process subcounty information
+        subcounty_names = subcounties_gdf["addr_sname"].dropna().unique().tolist()
+        
+        return {
+            "parishes": {
+                "count": len(parishes_gdf),
+                "details": parish_data
+            },
+            "subcounties": {
+                "count": len(subcounties_gdf),
+                "names": subcounty_names
+            }
+        }
+    def _analyze_environmental_metrics(self, region: Polygon) -> Dict[str, Any]:
+        """Analyzes environmental characteristics of the region."""
+        # Get all weighted tile statistics
+        env_stats = self.weighted_tile_stats_all(region)
+        
+        # Format and round numeric values for readability
+        for key, value in env_stats.items():
+            if isinstance(value, (int, float)):
+                env_stats[key] = round(value, 4)
+        
+        # Add NDVI classification
+        ndvi_value = env_stats.get("ndvi_mean", float("nan"))
+        if not np.isnan(ndvi_value):
+            if ndvi_value > 0.5:
+                env_stats["vegetation_density"] = "Dense vegetation"
+            elif ndvi_value > 0.2:
+                env_stats["vegetation_density"] = "Moderate vegetation"
+            elif ndvi_value > 0:
+                env_stats["vegetation_density"] = "Sparse vegetation"
+            else:
+                env_stats["vegetation_density"] = "Very limited vegetation"
+        
+        return env_stats
+
+    def analyze_region(self, region: Polygon) -> Dict[str, Any]:
+        """
+        Performs comprehensive analysis of all geospatial layers within the specified region.
+        
+        Returns structured data about settlements, infrastructure, administrative boundaries,
+        and environmental characteristics within the region of interest.
+        
+        Args:
+            region: The Shapely Polygon defining the area of interest.
+            
+        Returns:
+            A structured dictionary with comprehensive analysis results.
+        """
+        return {
+            "settlements": self._analyze_settlements_in_region(region),
+            "infrastructure": self._analyze_infrastructure_in_region(region),
+            "administrative": self._analyze_administrative_divisions(region),
+            "environment": self._analyze_environmental_metrics(region),
+            #"region_summary": self._generate_region_summary(region)
+        }
 
     # -----------------------------------------------------------------------------
     # 5) Generic SQL‐backed primitive (PostGIS) - Uncomment if using

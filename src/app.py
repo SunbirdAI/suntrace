@@ -36,7 +36,7 @@ def get_map_layers():
         center = [(bounds[1] + bounds[3]) / 2, (bounds[0] + bounds[2]) / 2]  # [lat, lon]
 
         # Convert minigrids to GeoJSON
-        minigrids_geo = json.loads(geospatial_analyzer._minigrids_gdf.to_crs('EPSG:4326').to_json())
+        candidate_minigrids_geo = json.loads(geospatial_analyzer._candidate_minigrids_gdf.to_crs('EPSG:4326').to_json())
         
         # Get a sample of buildings to avoid performance issues (limit to 2000)
         building_sample = geospatial_analyzer._buildings_gdf.sample(min(2000, len(geospatial_analyzer._buildings_gdf))) if len(geospatial_analyzer._buildings_gdf) > 2000 else geospatial_analyzer._buildings_gdf
@@ -45,7 +45,7 @@ def get_map_layers():
         return jsonify({
             'center': center,
             'bounds': [[bounds[1], bounds[0]], [bounds[3], bounds[2]]],  # [[minLat, minLon], [maxLat, maxLon]]
-            'minigrids': minigrids_geo,
+            'candidate_minigrids': candidate_minigrids_geo,
             'buildings': buildings_geo
         })
     except Exception as e:

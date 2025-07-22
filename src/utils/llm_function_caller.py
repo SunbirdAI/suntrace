@@ -21,7 +21,8 @@ tools = [
           },
           "layer_name": {
             "type": "string",
-            "enum": ["minigrids", "tiles", "roads", "solar_panels", "administrative_boundaries"]
+            "enum": ["buildings", "tiles", "roads", "villages", "parishes",
+              "subcounties", "existing_grid", "grid_extension", "candidate_minigrids", "existing_minigrids"]
           },
           "filter_expr": {
             "type": "string",
@@ -32,20 +33,20 @@ tools = [
       }
     },
     {
-      "name": "count_buildings_within_region",
-      "description": "Counts all building footprints within a given geographic region.",
+      "name": "analyze_region",
+      "description": "Performs comprehensive analysis of a geographic region, providing structured insights about settlements, infrastructure, and environmental characteristics.",
       "parameters": {
         "type": "object",
         "properties": {
           "region": {
             "type": "string",
-            "description": "The area as a Shapely Polygon in WKT format."
+            "description": "The geographic area (as a Shapely Polygon in WKT format) to analyze."
           }
         },
         "required": ["region"]
       }
-    },
-]
+    }
+    ]
 
 
 # ── 3) dispatcher ───────────────────────────────────────────────────────────
@@ -63,8 +64,9 @@ def handle_tool_call(tool_name, parameters, geospatial_analyzer=None):
                 parameters["layer_name"], 
                 parameters.get("filter_expr")
             )
-        elif tool_name == "count_buildings_within_region":
-            return geospatial_analyzer.count_buildings_within_region(region)
+        elif tool_name == "analyze_region":
+            region = wkt_loads(parameters["region"])
+            return geospatial_analyzer.analyze_region(region)
         else:
             raise ValueError(f"Unknown tool: {tool_name}")
     except Exception as e:
@@ -74,9 +76,22 @@ def handle_tool_call(tool_name, parameters, geospatial_analyzer=None):
 def ask_with_functions(user_prompt, analyzer=None):
     # Sanitize the user prompt to remove problematic Unicode characters
     user_prompt = unicodedata.normalize("NFKD", user_prompt).encode("ascii", "ignore").decode("ascii")
+    # Add system message for authoritative style
+    system_message = """You are an expert geospatial analyst providing authoritative insights.
+    When presenting analysis:
+    1. Begin with a clear, concise executive summary
+    2. Present quantitative findings using precise numbers
+    3. Organize information with headings and subheadings
+    4. Use professional, technical language without qualifying phrases
+    5. Structure responses with bullet points for key metrics
+    6. Include short analytical conclusions about the data
+    7. Present information objectively without conversational language"""
 
     # start with just the user message
-    messages = [{"role": "user", "content": user_prompt}]
+    messages = [
+        {"role": "system", "content": system_message},
+        {"role": "user", "content": user_prompt}
+        ]
     # 1st call: let the model decide if it needs a function
     response = openai.ChatCompletion.create(
         model="gpt-4o-mini",

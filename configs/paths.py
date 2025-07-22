@@ -6,12 +6,12 @@ PROJECT_ROOT = Path(__file__).parent.parent.absolute()
 
 # Data paths
 DATA_DIR = PROJECT_ROOT / "data"
-BUILDINGS_PATH = DATA_DIR / "lamwo_buildings_V3.gpkg"
 MINIGRIDS_PATH = DATA_DIR / "updated_candidate_minigrids_merged.gpkg"
 TILE_STATS_PATH = DATA_DIR / "Lamwo_Tile_Stats_EE.csv"
 PLAIN_TILES_PATH = DATA_DIR / "lamwo_sentinel_composites" / "lamwo_grid.geojson"
 
 VIZUALIZATION_DIR = DATA_DIR / "viz_geojsons"
+BUILDINGS_PATH = VIZUALIZATION_DIR / "lamwo_buildings.geojson"
 CANDIDATE_MINIGRIDS_PATH = VIZUALIZATION_DIR / "candidate_minigrids.geojson"
 EXISTING_MINIGRIDS_PATH = VIZUALIZATION_DIR / "existing_minigrids.geojson"
 EXISTING_GRID_PATH = VIZUALIZATION_DIR / "existing_grid.geojson"
