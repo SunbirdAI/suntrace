@@ -1,52 +1,60 @@
-import os
 import json
-import openai
-import geopandas as gpd
-from shapely.wkt import loads as wkt_loads
-import sys
+
 import unicodedata
 
+import openai
+from shapely.wkt import loads as wkt_loads
 
 # ── 1) define tools ──────────────────────────────────────────────────────────
 tools = [
     {
-      "name": "count_features_within_region",
-      "description": "Counts features in a specified geospatial layer that intersect with a given region. Can filter features based on a query expression.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "region": {
-            "type": "string",
-            "description": "The area as a Shapely Polygon in WKT format."
-          },
-          "layer_name": {
-            "type": "string",
-            "enum": ["buildings", "tiles", "roads", "villages", "parishes",
-              "subcounties", "existing_grid", "grid_extension", "candidate_minigrids", "existing_minigrids"]
-          },
-          "filter_expr": {
-            "type": "string",
-            "description": "Optional pandas-style filter (e.g. \"type=='residential'\")."
-          }
+        "name": "count_features_within_region",
+        "description": "Counts features in a specified geospatial layer that intersect with a given region. Can filter features based on a query expression.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "region": {
+                    "type": "string",
+                    "description": "The area as a Shapely Polygon in WKT format.",
+                },
+                "layer_name": {
+                    "type": "string",
+                    "enum": [
+                        "buildings",
+                        "tiles",
+                        "roads",
+                        "villages",
+                        "parishes",
+                        "subcounties",
+                        "existing_grid",
+                        "grid_extension",
+                        "candidate_minigrids",
+                        "existing_minigrids",
+                    ],
+                },
+                "filter_expr": {
+                    "type": "string",
+                    "description": "Optional pandas-style filter (e.g. \"type=='residential'\").",
+                },
+            },
+            "required": ["region", "layer_name"],
         },
-        "required": ["region", "layer_name"]
-      }
     },
     {
-      "name": "analyze_region",
-      "description": "Performs comprehensive analysis of a geographic region, providing structured insights about settlements, infrastructure, and environmental characteristics.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "region": {
-            "type": "string",
-            "description": "The geographic area (as a Shapely Polygon in WKT format) to analyze."
-          }
+        "name": "analyze_region",
+        "description": "Performs comprehensive analysis of a geographic region, providing structured insights about settlements, infrastructure, and environmental characteristics.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "region": {
+                    "type": "string",
+                    "description": "The geographic area (as a Shapely Polygon in WKT format) to analyze.",
+                }
+            },
+            "required": ["region"],
         },
-        "required": ["region"]
-      }
-    }
-    ]
+    },
+]
 
 
 # ── 3) dispatcher ───────────────────────────────────────────────────────────
@@ -54,15 +62,14 @@ def handle_tool_call(tool_name, parameters, geospatial_analyzer=None):
     if geospatial_analyzer is None:
         # Fallback to creating a new instance if needed
         from utils.factory import create_geospatial_analyzer
+
         geospatial_analyzer = create_geospatial_analyzer()
 
     try:
         region = wkt_loads(parameters["region"])
         if tool_name == "count_features_within_region":
             return geospatial_analyzer.count_features_within_region(
-                region, 
-                parameters["layer_name"], 
-                parameters.get("filter_expr")
+                region, parameters["layer_name"], parameters.get("filter_expr")
             )
         elif tool_name == "analyze_region":
             region = wkt_loads(parameters["region"])
@@ -72,32 +79,53 @@ def handle_tool_call(tool_name, parameters, geospatial_analyzer=None):
     except Exception as e:
         return {"error": str(e)}
 
+
 # ── 4) helper to run a single user query ─────────────────────────────────────
 def ask_with_functions(user_prompt, analyzer=None):
     # Sanitize the user prompt to remove problematic Unicode characters
-    user_prompt = unicodedata.normalize("NFKD", user_prompt).encode("ascii", "ignore").decode("ascii")
+    user_prompt = (
+        unicodedata.normalize("NFKD", user_prompt)
+        .encode("ascii", "ignore")
+        .decode("ascii")
+    )
     # Add system message for authoritative style
-    system_message = """You are an expert geospatial analyst providing authoritative insights.
-    When presenting analysis:
-    1. Begin with a clear, concise executive summary
-    2. Present quantitative findings using precise numbers
-    3. Organize information with headings and subheadings
-    4. Use professional, technical language without qualifying phrases
-    5. Structure responses with bullet points for key metrics
-    6. Include short analytical conclusions about the data
-    7. Present information objectively without conversational language"""
+    system_message = """
+        You are a geospatial analyst providing clear, actionable insights to users who need practical information for decision-making.
 
+        **Response Structure:**
+        - Start immediately with a clear, confident answer to the user's question. Follow with the most relevant supporting details, then conclude with practical implications.
+        – If the user's question falls outside the supported context, you **must** start by **explaining that you're unable to answer their specific query**. Then, provide a helpful summary of insights based on the region they selected.
+        
+        **Content Guidelines:**
+        - Lead with the key finding or answer in the first sentence
+        - Include 2-3 specific metrics or data points that matter most
+        - End with 1-2 sentences explaining what this means for planning or decisions
+        - Use concrete numbers and avoid vague descriptions
+        - Explain technical terms in simple language when necessary
+
+        **Formatting:**
+        - Use **bold text** for all numbers, statistics, and measurements
+        - Keep paragraphs short and scannable
+        - Use bullet points only when listing multiple distinct items
+        - Maintain professional but approachable tone
+        - Highlight key findings and important terms with **bold text*
+        - Add **line breaks between paragraphs** for clarity
+        - Respond using **Markdown syntax**
+         
+
+        **Focus:** Answer exactly what was asked - provide the most valuable insight rather than comprehensive coverage. Users want actionable information they can immediately understand and use.
+        """
+    # **Length:** Keep responses under 150 words to ensure clarity and immediate usefulness.
+
+    # - Highlight key findings and important terms with **bold text*
     # start with just the user message
     messages = [
         {"role": "system", "content": system_message},
-        {"role": "user", "content": user_prompt}
-        ]
+        {"role": "user", "content": user_prompt},
+    ]
     # 1st call: let the model decide if it needs a function
     response = openai.ChatCompletion.create(
-        model="gpt-4o-mini",
-        messages=messages,
-        functions=tools,
-        function_call="auto"
+        model="gpt-4o-mini", messages=messages, functions=tools, function_call="auto"
     )
     msg = response.choices[0].message
 
@@ -111,21 +139,17 @@ def ask_with_functions(user_prompt, analyzer=None):
 
         # add the tool call and its result into the conversation
         messages.append(msg)  # the function_call request
-        messages.append({
-            "role": "function",
-            "name": name,
-            "content": json.dumps(result)
-        })
+        messages.append(
+            {"role": "function", "name": name, "content": json.dumps(result)}
+        )
 
         # 2nd call: let the model produce a final answer
-        second = openai.ChatCompletion.create(
-            model="gpt-4o-mini",
-            messages=messages
-        )
+        second = openai.ChatCompletion.create(model="gpt-4o-mini", messages=messages)
         return second.choices[0].message.content
 
     # otherwise, just return the content
     return msg.content
+
 
 # ── 5) how to supply a dynamic region ────────────────────────────────────────
 # Sample code is commented out to avoid running on import
