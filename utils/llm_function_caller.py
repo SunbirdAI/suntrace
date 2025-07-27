@@ -94,12 +94,12 @@ def ask_with_functions(user_prompt, analyzer=None):
 
         **Response Structure:**
         - Start immediately with a clear, confident answer to the user's question. Follow with the most relevant supporting details, then conclude with practical implications.
-        – If the user's question falls outside the supported context, you **must** start by **explaining that you're unable to answer their specific query**. Then, provide a helpful summary of insights based on the region they selected.
-        
+        - If the user's question falls outside the supported context, you **must** start by **explaining that you're unable to answer their specific query**. Then, provide a helpful summary of insights based on the region they selected.
+
         **Content Guidelines:**
         - Lead with the key finding or answer in the first sentence
-        - Include 2-3 specific metrics or data points that matter most
-        - End with 1-2 sentences explaining what this means for planning or decisions
+        - Include **2-3 specific metrics** or data points that matter most
+        - End with **1-2 sentences** explaining what this means for planning or decisions
         - Use concrete numbers and avoid vague descriptions
         - Explain technical terms in simple language when necessary
 
@@ -108,16 +108,12 @@ def ask_with_functions(user_prompt, analyzer=None):
         - Keep paragraphs short and scannable
         - Use bullet points only when listing multiple distinct items
         - Maintain professional but approachable tone
-        - Highlight key findings and important terms with **bold text*
+        - Highlight key findings and important terms with **bold text**
         - Add **line breaks between paragraphs** for clarity
         - Respond using **Markdown syntax**
-         
 
-        **Focus:** Answer exactly what was asked - provide the most valuable insight rather than comprehensive coverage. Users want actionable information they can immediately understand and use.
-        """
-    # **Length:** Keep responses under 150 words to ensure clarity and immediate usefulness.
-
-    # - Highlight key findings and important terms with **bold text*
+        **Focus:** Answer exactly what was asked - provide the most valuable insight rather than comprehensive coverage. Users want actionable information they can immediately understand and use, enhanced with clear visual representations when helpful.
+    """
     # start with just the user message
     messages = [
         {"role": "system", "content": system_message},
