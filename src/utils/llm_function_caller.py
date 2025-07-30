@@ -6,6 +6,16 @@ from shapely.wkt import loads as wkt_loads
 import sys
 import unicodedata
 
+# Load system prompt from external file
+current_dir = os.path.dirname(os.path.abspath(__file__))
+system_prompt_file = os.path.abspath(os.path.join(current_dir, '../../configs/system_prompt.txt'))
+try:
+    with open(system_prompt_file, 'r') as f:
+        SYSTEM_PROMPT = f.read()
+except Exception as e:
+    print(f"Warning: Could not load system prompt: {e}")
+    SYSTEM_PROMPT = ""
+
 
 # ── 1) define tools ──────────────────────────────────────────────────────────
 tools = [
@@ -34,7 +44,8 @@ tools = [
     },
     {
       "name": "analyze_region",
-      "description": "Performs comprehensive analysis of a geographic region, providing structured insights about settlements, infrastructure, and environmental characteristics.",
+      "description": "Performs comprehensive analysis of a geographic region, \
+        providing structured insights about settlements, infrastructure, and environmental characteristics.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -45,7 +56,71 @@ tools = [
         },
         "required": ["region"]
       }
+    },
+    {
+      "name": "_analyze_environmental_metrics",
+      "description": "Performs comprehensive analysis of a geographic region, \
+        providing structured insights about environmental characteristics, \
+        including NDVI, EVI, Elevation, Slope, Solar PAR, Rainfall, Cloud Free Days.",
+      "parameters": {
+          "type": "object",
+          "properties": {
+              "region": {
+                "type": "string",
+                "description": "The geographic area (as a Shapely Polygon in WKT format) to analyze."
+              }
+          },
+        "required": ["region"]
+      }
+    },
+    {
+      "name": "_analyze_settlements_in_region",
+      "description": "Analyzes building data and settlement patterns within a specified geographic region.",
+      "parameters": {
+          "type": "object",
+          "properties": {
+              "region": {
+                "type": "string",
+                "description": "The geographic area (as a Shapely Polygon in WKT format) to analyze."
+              }
+          },
+        "required": ["region"]
+      }
+    },
+    {
+      "name": "_analyze_infrastructure_in_region",
+      "description": "Analyzes infrastructure elements including roads, grid, and energy systems.",
+      "parameters": {
+          "type": "object",
+          "properties": {
+              "region": {
+                "type": "string",
+                "description": "The geographic area (as a Shapely Polygon in WKT format) to analyze."
+              }
+          },
+        "required": ["region"]
+      }
+    },
+    {
+      "name": "get_layer_geometry",
+      "description": "Retrieves the Shapely geometry for the union of features of a given layer.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "region": {
+            "type": "string",
+            "description": "The area as a Shapely Polygon in WKT format."
+          },
+          "layer_name": {
+            "type": "string",
+            "enum": ["buildings", "tiles", "roads", "villages", "parishes",
+              "subcounties", "existing_grid", "grid_extension", "candidate_minigrids", "existing_minigrids"]
+          }
+        },
+        "required": ["region", "layer_name"]
+      }
     }
+    
     ]
 
 
@@ -67,6 +142,15 @@ def handle_tool_call(tool_name, parameters, geospatial_analyzer=None):
         elif tool_name == "analyze_region":
             region = wkt_loads(parameters["region"])
             return geospatial_analyzer.analyze_region(region)
+        elif tool_name == "_analyze_environmental_metrics":
+            region = wkt_loads(parameters["region"])
+            return geospatial_analyzer._analyze_environmental_metrics(region)
+        elif tool_name == "_analyze_settlements_in_region":
+            region = wkt_loads(parameters["region"])
+            return geospatial_analyzer._analyze_settlements_in_region(region)
+        elif tool_name == "_analyze_infrastructure_in_region":
+            region = wkt_loads(parameters["region"])
+            return geospatial_analyzer._analyze_infrastructure_in_region(region)
         else:
             raise ValueError(f"Unknown tool: {tool_name}")
     except Exception as e:
@@ -77,15 +161,7 @@ def ask_with_functions(user_prompt, analyzer=None):
     # Sanitize the user prompt to remove problematic Unicode characters
     user_prompt = unicodedata.normalize("NFKD", user_prompt).encode("ascii", "ignore").decode("ascii")
     # Add system message for authoritative style
-    system_message = """You are an expert geospatial analyst providing authoritative insights.
-    When presenting analysis:
-    1. Begin with a clear, concise executive summary
-    2. Present quantitative findings using precise numbers
-    3. Organize information with headings and subheadings
-    4. Use professional, technical language without qualifying phrases
-    5. Structure responses with bullet points for key metrics
-    6. Include short analytical conclusions about the data
-    7. Present information objectively without conversational language"""
+    system_message = SYSTEM_PROMPT
 
     # start with just the user message
     messages = [

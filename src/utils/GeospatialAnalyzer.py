@@ -143,7 +143,7 @@ class GeospatialAnalyzer:
             df = df.replace('', np.nan)
 
             # Define columns that should be integers vs floats
-            int_cols = ['cf_days', 'id'] # Assuming 'id' should be int for merging
+            int_cols = ['cloud_free_days', 'id'] # Assuming 'id' should be int for merging
             float_cols_to_process = [col for col in df.columns if col not in int_cols + ['geometry']] # Exclude geometry
 
             for col in int_cols:
@@ -158,6 +158,8 @@ class GeospatialAnalyzer:
                  if col in df.columns:
                     # Use .loc to avoid SettingWithCopyWarning
                     df.loc[:, col] = df[col].fillna(0).astype(float)
+            # drop(columns=['bldg_count', 'bldg_area', 'bldg_h_max'])
+            df = df.drop(columns=['bldg_count', 'bldg_area', 'bldg_h_max'], errors='ignore')
 
 
             if 'geometry' not in df.columns and pathstring.lower().endswith('.csv'):
@@ -181,18 +183,18 @@ class GeospatialAnalyzer:
         except Exception as e:
             print(f"Error loading or processing tile stats from {path}: {e}")
             # Return an empty GeoDataFrame with expected columns to prevent errors later
-            return gpd.GeoDataFrame(columns=['id', 'cf_days', 'ndvi_mean', 'geometry'], geometry='geometry')
+            return gpd.GeoDataFrame(columns=['id', 'cloud_free_days', 'ndvi_mean', 'geometry'], geometry='geometry')
 
 
     def _merge_tile_data(self, tile_stats_gdf: gpd.GeoDataFrame, plain_tiles_gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         """Merges tile statistics with plain tile geometries."""
         if tile_stats_gdf.empty or plain_tiles_gdf.empty:
             print("Warning: Cannot merge tile data because one or both GeoDataFrames are empty.")
-            return gpd.GeoDataFrame(columns=['id', 'cf_days', 'ndvi_mean', 'geometry'], geometry='geometry')
+            return gpd.GeoDataFrame(columns=['id', 'cloud_free_days', 'ndvi_mean', 'geometry'], geometry='geometry')
 
         if 'id' not in tile_stats_gdf.columns:
              print("Error: Tile stats GeoDataFrame is missing the 'id' column for merging.")
-             return gpd.GeoDataFrame(columns=['id', 'cf_days', 'ndvi_mean', 'geometry'], geometry='geometry')
+             return gpd.GeoDataFrame(columns=['id', 'cloud_free_days', 'ndvi_mean', 'geometry'], geometry='geometry')
         if 'id' not in plain_tiles_gdf.columns:
              # Create an 'id' column in plain_tiles_gdf from its index if missing
              print("Warning: Plain tiles GeoDataFrame is missing the 'id' column. Creating from index.")
@@ -209,7 +211,7 @@ class GeospatialAnalyzer:
 
         if 'geometry' not in merged_gdf.columns or merged_gdf['geometry'].isnull().all():
              print("Error: Merge resulted in a GeoDataFrame without valid geometry.")
-             return gpd.GeoDataFrame(columns=['id', 'cf_days', 'ndvi_mean', 'geometry'], geometry='geometry')
+             return gpd.GeoDataFrame(columns=['id', 'cloud_free_days', 'ndvi_mean', 'geometry'], geometry='geometry')
 
         # Ensure merged GeoDataFrame has a CRS, ideally the same as the plain tiles
         if merged_gdf.crs is None and plain_tiles_gdf.crs is not None:
@@ -433,108 +435,6 @@ class GeospatialAnalyzer:
             print(f"Error during intersection for layer '{layer_name}': {e}")
             return 0
 
-    # -----------------------------------------------------------------------------
-    # 2) Layer‐specific counts
-    # -----------------------------------------------------------------------------
-    def count_buildings_within_region(self, region: Polygon) -> int:
-        """
-        Counts all building footprints within the region.
-
-        Args:
-            region: The Shapely Polygon defining the area of interest.
-
-        Returns:
-            The number of buildings within the region.
-        """
-        return self.count_features_within_region(region, 'buildings')
-        
-    def count_roads_within_region(self, region: Polygon) -> int:
-        return self.count_features_within_region(region, 'roads')
-
-    def count_villages_within_region(self, region: Polygon) -> int:
-        """
-        Counts all villages within the region.
-
-        Args:
-            region: The Shapely Polygon defining the area of interest.
-
-        Returns:
-            The number of villages within the region.
-        """
-        return self.count_features_within_region(region, 'villages')
-
-    def count_parishes_within_region(self, region: Polygon) -> int:
-        """
-        Counts all parishes within the region.
-
-        Args:
-            region: The Shapely Polygon defining the area of interest.
-
-        Returns:
-            The number of parishes within the region.
-        """
-        return self.count_features_within_region(region, 'parishes')
-
-    def count_subcounties_within_region(self, region: Polygon) -> int:
-        """
-        Counts all subcounties within the region.
-
-        Args:
-            region: The Shapely Polygon defining the area of interest.
-
-        Returns:
-            The number of subcounties within the region.
-        """
-        return self.count_features_within_region(region, 'subcounties')
-
-    def count_existing_grid_within_region(self, region: Polygon) -> int:
-        """
-        Counts all existing grid features within the region.
-
-        Args:
-            region: The Shapely Polygon defining the area of interest.
-
-        Returns:
-            The number of existing grid features within the region.
-        """
-        return self.count_features_within_region(region, 'existing_grid')
-
-    def count_grid_extension_within_region(self, region: Polygon) -> int:
-        """
-        Counts all grid extension features within the region.
-
-        Args:
-            region: The Shapely Polygon defining the area of interest.
-
-        Returns:
-            The number of grid extension features within the region.
-        """
-        return self.count_features_within_region(region, 'grid_extension')
-
-    def count_candidate_minigrids_within_region(self, region: Polygon) -> int:
-        """
-        Counts all candidate mini-grids within the region.
-
-        Args:
-            region: The Shapely Polygon defining the area of interest.
-
-        Returns:
-            The number of candidate mini-grids within the region.
-        """
-        return self.count_features_within_region(region, 'candidate_minigrids')
-
-    def count_existing_minigrids_within_region(self, region: Polygon) -> int:
-        """
-        Counts all existing mini-grids within the region.
-
-        Args:
-            region: The Shapely Polygon defining the area of interest.
-
-        Returns:
-            The number of existing mini-grids within the region.
-        """
-        return self.count_features_within_region(region, 'existing_minigrids')
-
 
     # -----------------------------------------------------------------------------
     def count_high_ndvi_buildings(self,
@@ -755,7 +655,7 @@ class GeospatialAnalyzer:
         Returns:
             The mean total cloud-free days, or NaN if no tiles intersect or total area is zero.
         """
-        return self.weighted_tile_stat(region, 'cf_days')
+        return self.weighted_tile_stat(region, 'cloud_free_days')
     def elev_mean(self, region: Polygon) -> float:
         """
         Calculates the area-weighted mean elevation for a region using tile statistics.
@@ -810,7 +710,7 @@ class GeospatialAnalyzer:
 
     def get_layer_geometry(self, layer_name: str, region: base.BaseGeometry) -> Optional[Polygon]:
         """
-        Returns the Shapely geometry for a feature of a given layer.
+        Returns the Shapely geometry for the union of features of a given layer.
 
 
         Uses the layer_map to access the appropriate GeoDataFrame based on layer_name.
@@ -838,7 +738,7 @@ class GeospatialAnalyzer:
         ### YOUR IMPLEMENTATION HERE ###
         gdf = self.get_gdf_info_within_region(region, layer_name)
         if gdf.empty: return None
-        return gdf.geometry.unary_union
+        return gdf.geometry.union_all("unary")
 
         
 
@@ -955,8 +855,8 @@ class GeospatialAnalyzer:
         return {
             "building_count": total_buildings,
             "building_categories": building_categories,
-            "village_count": len(villages_gdf),
-            "village_details": village_data,
+            "intersecting_village_count": len(villages_gdf),
+            "intersecting_village_details": village_data,
             "has_truncated_villages": len(villages_gdf) > 20
         }
     
@@ -1033,7 +933,7 @@ class GeospatialAnalyzer:
         """Analyzes environmental characteristics of the region."""
         # Get all weighted tile statistics
         env_stats = self.weighted_tile_stats_all(region)
-        
+
         # Format and round numeric values for readability
         for key, value in env_stats.items():
             if isinstance(value, (int, float)):
@@ -1332,10 +1232,10 @@ class GeospatialAnalyzer:
                 print(f"Error adding plain tiles to map: {e}")
 
 
-        if show_minigrids and not self._minigrids_gdf.empty:
+        if show_minigrids and not self._candidate_minigrids_gdf.empty:
             try:
                 # Reproject to geographic CRS for Folium
-                minigrids_for_vis = self._check_and_reproject_gdf(self._minigrids_gdf.copy(), self.target_geographic_crs)
+                minigrids_for_vis = self._check_and_reproject_gdf(self._candidate_minigrids_gdf.copy(), self.target_geographic_crs)
                 folium.GeoJson(
                     minigrids_for_vis.to_json(),
                     name='Mini Grids',
