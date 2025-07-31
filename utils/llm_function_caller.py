@@ -1,9 +1,21 @@
 import json
 
 import unicodedata
-
+import os
 import openai
 from shapely.wkt import loads as wkt_loads
+import unicodedata
+
+# Load system prompt from external file
+current_dir = os.path.dirname(os.path.abspath(__file__))
+system_prompt_file = os.path.abspath(os.path.join(current_dir, '../../configs/system_prompt.txt'))
+try:
+    with open(system_prompt_file, 'r') as f:
+        SYSTEM_PROMPT = f.read()
+except Exception as e:
+    print(f"Warning: Could not load system prompt: {e}")
+    SYSTEM_PROMPT = ""
+
 
 # ── 1) define tools ──────────────────────────────────────────────────────────
 tools = [
@@ -41,20 +53,85 @@ tools = [
         },
     },
     {
-        "name": "analyze_region",
-        "description": "Performs comprehensive analysis of a geographic region, providing structured insights about settlements, infrastructure, and environmental characteristics.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "region": {
-                    "type": "string",
-                    "description": "The geographic area (as a Shapely Polygon in WKT format) to analyze.",
-                }
-            },
-            "required": ["region"],
+      "name": "analyze_region",
+      "description": "Performs comprehensive analysis of a geographic region, \
+        providing structured insights about settlements, infrastructure, and environmental characteristics.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "region": {
+            "type": "string",
+            "description": "The geographic area (as a Shapely Polygon in WKT format) to analyze."
+          }
         },
+        "required": ["region"]
+      }
     },
-]
+    {
+      "name": "_analyze_environmental_metrics",
+      "description": "Performs comprehensive analysis of a geographic region, \
+        providing structured insights about environmental characteristics, \
+        including NDVI, EVI, Elevation, Slope, Solar PAR, Rainfall, Cloud Free Days.",
+      "parameters": {
+          "type": "object",
+          "properties": {
+              "region": {
+                "type": "string",
+                "description": "The geographic area (as a Shapely Polygon in WKT format) to analyze."
+              }
+          },
+        "required": ["region"]
+      }
+    },
+    {
+      "name": "_analyze_settlements_in_region",
+      "description": "Analyzes building data and settlement patterns within a specified geographic region.",
+      "parameters": {
+          "type": "object",
+          "properties": {
+              "region": {
+                "type": "string",
+                "description": "The geographic area (as a Shapely Polygon in WKT format) to analyze."
+              }
+          },
+        "required": ["region"]
+      }
+    },
+    {
+      "name": "_analyze_infrastructure_in_region",
+      "description": "Analyzes infrastructure elements including roads, grid, and energy systems.",
+      "parameters": {
+          "type": "object",
+          "properties": {
+              "region": {
+                "type": "string",
+                "description": "The geographic area (as a Shapely Polygon in WKT format) to analyze."
+              }
+          },
+        "required": ["region"]
+      }
+    },
+    {
+      "name": "get_layer_geometry",
+      "description": "Retrieves the Shapely geometry for the union of features of a given layer.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "region": {
+            "type": "string",
+            "description": "The area as a Shapely Polygon in WKT format."
+          },
+          "layer_name": {
+            "type": "string",
+            "enum": ["buildings", "tiles", "roads", "villages", "parishes",
+              "subcounties", "existing_grid", "grid_extension", "candidate_minigrids", "existing_minigrids"]
+          }
+        },
+        "required": ["region", "layer_name"]
+      }
+    }
+    
+    ]
 
 
 # ── 3) dispatcher ───────────────────────────────────────────────────────────
@@ -74,6 +151,15 @@ def handle_tool_call(tool_name, parameters, geospatial_analyzer=None):
         elif tool_name == "analyze_region":
             region = wkt_loads(parameters["region"])
             return geospatial_analyzer.analyze_region(region)
+        elif tool_name == "_analyze_environmental_metrics":
+            region = wkt_loads(parameters["region"])
+            return geospatial_analyzer._analyze_environmental_metrics(region)
+        elif tool_name == "_analyze_settlements_in_region":
+            region = wkt_loads(parameters["region"])
+            return geospatial_analyzer._analyze_settlements_in_region(region)
+        elif tool_name == "_analyze_infrastructure_in_region":
+            region = wkt_loads(parameters["region"])
+            return geospatial_analyzer._analyze_infrastructure_in_region(region)
         else:
             raise ValueError(f"Unknown tool: {tool_name}")
     except Exception as e:
@@ -89,31 +175,8 @@ def ask_with_functions(user_prompt, analyzer=None):
         .decode("ascii")
     )
     # Add system message for authoritative style
-    system_message = """
-        You are a geospatial analyst providing clear, actionable insights to users who need practical information for decision-making.
+    system_message = SYSTEM_PROMPT
 
-        **Response Structure:**
-        - Start immediately with a clear, confident answer to the user's question. Follow with the most relevant supporting details, then conclude with practical implications.
-        - If the user's question falls outside the supported context, you **must** start by **explaining that you're unable to answer their specific query**. Then, provide a helpful summary of insights based on the region they selected.
-
-        **Content Guidelines:**
-        - Lead with the key finding or answer in the first sentence
-        - Include **2-3 specific metrics** or data points that matter most
-        - End with **1-2 sentences** explaining what this means for planning or decisions
-        - Use concrete numbers and avoid vague descriptions
-        - Explain technical terms in simple language when necessary
-
-        **Formatting:**
-        - Use **bold text** for all numbers, statistics, and measurements
-        - Keep paragraphs short and scannable
-        - Use bullet points only when listing multiple distinct items
-        - Maintain professional but approachable tone
-        - Highlight key findings and important terms with **bold text**
-        - Add **line breaks between paragraphs** for clarity
-        - Respond using **Markdown syntax**
-
-        **Focus:** Answer exactly what was asked - provide the most valuable insight rather than comprehensive coverage. Users want actionable information they can immediately understand and use, enhanced with clear visual representations when helpful.
-    """
     # start with just the user message
     messages = [
         {"role": "system", "content": system_message},
