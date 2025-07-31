@@ -5,7 +5,7 @@ Test script to verify buffer_geometry functionality works through the LLM interf
 
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
+sys.path.append(os.path.join(os.path.dirname(__file__)))
 
 from utils.llm_function_caller import ask_with_functions
 from utils.factory import create_geospatial_analyzer

@@ -5,16 +5,10 @@ import os
 import openai
 from shapely.wkt import loads as wkt_loads
 import unicodedata
+from configs.system_prompt import SYSTEM_PROMPT
 
 # Load system prompt from external file
 current_dir = os.path.dirname(os.path.abspath(__file__))
-system_prompt_file = os.path.abspath(os.path.join(current_dir, '../../configs/system_prompt.txt'))
-try:
-    with open(system_prompt_file, 'r') as f:
-        SYSTEM_PROMPT = f.read()
-except Exception as e:
-    print(f"Warning: Could not load system prompt: {e}")
-    SYSTEM_PROMPT = ""
 
 
 # ── 1) define tools ──────────────────────────────────────────────────────────
@@ -53,85 +47,94 @@ tools = [
         },
     },
     {
-      "name": "analyze_region",
-      "description": "Performs comprehensive analysis of a geographic region, \
+        "name": "analyze_region",
+        "description": "Performs comprehensive analysis of a geographic region, \
         providing structured insights about settlements, infrastructure, and environmental characteristics.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "region": {
-            "type": "string",
-            "description": "The geographic area (as a Shapely Polygon in WKT format) to analyze."
-          }
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "region": {
+                    "type": "string",
+                    "description": "The geographic area (as a Shapely Polygon in WKT format) to analyze.",
+                }
+            },
+            "required": ["region"],
         },
-        "required": ["region"]
-      }
     },
     {
-      "name": "_analyze_environmental_metrics",
-      "description": "Performs comprehensive analysis of a geographic region, \
+        "name": "_analyze_environmental_metrics",
+        "description": "Performs comprehensive analysis of a geographic region, \
         providing structured insights about environmental characteristics, \
         including NDVI, EVI, Elevation, Slope, Solar PAR, Rainfall, Cloud Free Days.",
-      "parameters": {
-          "type": "object",
-          "properties": {
-              "region": {
-                "type": "string",
-                "description": "The geographic area (as a Shapely Polygon in WKT format) to analyze."
-              }
-          },
-        "required": ["region"]
-      }
-    },
-    {
-      "name": "_analyze_settlements_in_region",
-      "description": "Analyzes building data and settlement patterns within a specified geographic region.",
-      "parameters": {
-          "type": "object",
-          "properties": {
-              "region": {
-                "type": "string",
-                "description": "The geographic area (as a Shapely Polygon in WKT format) to analyze."
-              }
-          },
-        "required": ["region"]
-      }
-    },
-    {
-      "name": "_analyze_infrastructure_in_region",
-      "description": "Analyzes infrastructure elements including roads, grid, and energy systems.",
-      "parameters": {
-          "type": "object",
-          "properties": {
-              "region": {
-                "type": "string",
-                "description": "The geographic area (as a Shapely Polygon in WKT format) to analyze."
-              }
-          },
-        "required": ["region"]
-      }
-    },
-    {
-      "name": "get_layer_geometry",
-      "description": "Retrieves the Shapely geometry for the union of features of a given layer.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "region": {
-            "type": "string",
-            "description": "The area as a Shapely Polygon in WKT format."
-          },
-          "layer_name": {
-            "type": "string",
-            "enum": ["buildings", "tiles", "roads", "villages", "parishes",
-              "subcounties", "existing_grid", "grid_extension", "candidate_minigrids", "existing_minigrids"]
-          }
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "region": {
+                    "type": "string",
+                    "description": "The geographic area (as a Shapely Polygon in WKT format) to analyze.",
+                }
+            },
+            "required": ["region"],
         },
-        "required": ["region", "layer_name"]
-      }
-    }
-    
-    ]
+    },
+    {
+        "name": "_analyze_settlements_in_region",
+        "description": "Analyzes building data and settlement patterns within a specified geographic region.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "region": {
+                    "type": "string",
+                    "description": "The geographic area (as a Shapely Polygon in WKT format) to analyze.",
+                }
+            },
+            "required": ["region"],
+        },
+    },
+    {
+        "name": "_analyze_infrastructure_in_region",
+        "description": "Analyzes infrastructure elements including roads, grid, and energy systems.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "region": {
+                    "type": "string",
+                    "description": "The geographic area (as a Shapely Polygon in WKT format) to analyze.",
+                }
+            },
+            "required": ["region"],
+        },
+    },
+    {
+        "name": "get_layer_geometry",
+        "description": "Retrieves the Shapely geometry for the union of features of a given layer.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "region": {
+                    "type": "string",
+                    "description": "The area as a Shapely Polygon in WKT format.",
+                },
+                "layer_name": {
+                    "type": "string",
+                    "enum": [
+                        "buildings",
+                        "tiles",
+                        "roads",
+                        "villages",
+                        "parishes",
+                        "subcounties",
+                        "existing_grid",
+                        "grid_extension",
+                        "candidate_minigrids",
+                        "existing_minigrids",
+                    ],
+                },
+            },
+            "required": ["region", "layer_name"],
+        },
+    },
+]
 
 
 # ── 3) dispatcher ───────────────────────────────────────────────────────────
