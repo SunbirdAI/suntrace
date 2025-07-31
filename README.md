@@ -9,7 +9,6 @@ Suntrace is a multimodal geospatial analysis platform integrating GIS data, LLM 
 - Interactive frontend with map and chat ([templates/index.html](templates/index.html))
 - REST API via FastAPI (see [`main.py`](main.py))
 - Comprehensive test suite ([tests/](tests/))
-- Dockerized deployment
 
 ## Project Structure
 
@@ -64,13 +63,6 @@ docker run -p 8000:8000 suntrace
 
 Open [http://localhost:8000](http://localhost:8000) in your browser.
 
-## Development Workflow
-
-- Format code: `make format`
-- Lint code: `make lint`
-- Run all tests: `make test-all`
-- Check data files: `make check-data`
-- Start Jupyter Lab: `make jupyter`
 
 ## Testing
 
