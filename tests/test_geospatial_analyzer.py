@@ -4,7 +4,7 @@ import geopandas as gpd
 from shapely.geometry import Polygon, Point
 
 # Add the src directory to the Python path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from utils.factory import create_geospatial_analyzer
 
 # Add the project root (one level up) to the Python path for configs
