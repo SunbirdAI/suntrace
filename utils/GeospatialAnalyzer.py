@@ -4,12 +4,12 @@ import geopandas as gpd
 import pandas as pd
 
 from shapely.geometry import Polygon, Point, base
-
+# import rasterio
 import numpy as np
 
 # from sqlalchemy import create_engine # Uncomment if using PostGIS
+# import ee
 import folium
-
 # from IPython.display import display  # Keep for displaying maps in Colab
 
 
