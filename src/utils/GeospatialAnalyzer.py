@@ -536,7 +536,7 @@ class GeospatialAnalyzer:
             return {}
 
         try:
-            tiles = tiles.copy()
+            tiles = tiles.copy().drop(columns=['id'], errors='ignore')  # Avoid SettingWithCopyWarning
             tiles["intersect_area"] = tiles.geometry.intersection(region_m_geom).area
             total_area = tiles["intersect_area"].sum()
             if total_area == 0:
@@ -807,7 +807,7 @@ class GeospatialAnalyzer:
 
         try:
             distances = existing_grid_metric.geometry.distance(geometry)
-            return distances.min() if not distances.empty else float("nan")
+            return int(distances.min()) if not distances.empty else float("nan")
         except Exception as e:
              print(f"Error computing distance to existing grid: {e}")
              return float("nan")
@@ -871,9 +871,10 @@ class GeospatialAnalyzer:
             road_types[str(highway_type)] = count
             
         # Grid infrastructure analysis
-        grid_present = self.count_existing_grid_within_region(region) > 0
-        grid_extension = self.count_grid_extension_within_region(region) > 0
-        
+        grid_present = self.count_features_within_region(region, 'existing_grid') > 0
+        grid_extension = self.count_features_within_region(region, 'grid_extension') > 0
+        distance_to_grid = self.compute_distance_to_grid(region)
+
         # Candidate minigrids
         candidate_minigrids_gdf = self.get_gdf_info_within_region(region, 'candidate_minigrids')
         existing_minigrids_gdf = self.get_gdf_info_within_region(region, 'existing_minigrids')
@@ -894,6 +895,7 @@ class GeospatialAnalyzer:
             },
             "electricity": {
                 "existing_grid_present": grid_present,
+                "distance_to_existing_grid": distance_to_grid,
                 "grid_extension_proposed": grid_extension,
                 "candidate_minigrids_count": len(candidate_minigrids_gdf),
                 "existing_minigrids_count": len(existing_minigrids_gdf),
