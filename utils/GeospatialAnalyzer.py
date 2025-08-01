@@ -9,6 +9,7 @@ import numpy as np
 
 # from sqlalchemy import create_engine # Uncomment if using PostGIS
 import folium
+
 # from IPython.display import display  # Keep for displaying maps in Colab
 
 
@@ -181,8 +182,13 @@ class GeospatialAnalyzer:
             df = df.replace("", np.nan)
 
             # Define columns that should be integers vs floats
-            int_cols = ['cloud_free_days', 'id'] # Assuming 'id' should be int for merging
-            float_cols_to_process = [col for col in df.columns if col not in int_cols + ['geometry']] # Exclude geometry
+            int_cols = [
+                "cloud_free_days",
+                "id",
+            ]  # Assuming 'id' should be int for merging
+            float_cols_to_process = [
+                col for col in df.columns if col not in int_cols + ["geometry"]
+            ]  # Exclude geometry
 
             for col in int_cols:
                 if col in df.columns:
@@ -203,7 +209,9 @@ class GeospatialAnalyzer:
                     # Use .loc to avoid SettingWithCopyWarning
                     df.loc[:, col] = df[col].fillna(0).astype(float)
             # drop(columns=['bldg_count', 'bldg_area', 'bldg_h_max'])
-            df = df.drop(columns=['bldg_count', 'bldg_area', 'bldg_h_max'], errors='ignore')
+            df = df.drop(
+                columns=["bldg_count", "bldg_area", "bldg_h_max"], errors="ignore"
+            )
 
             if "geometry" not in df.columns and pathstring.lower().endswith(".csv"):
                 # If loaded from CSV, geometry will be added during the merge with _plain_tiles_gdf
@@ -233,24 +241,38 @@ class GeospatialAnalyzer:
         except Exception as e:
             print(f"Error loading or processing tile stats from {path}: {e}")
             # Return an empty GeoDataFrame with expected columns to prevent errors later
-            return gpd.GeoDataFrame(columns=['id', 'cloud_free_days', 'ndvi_mean', 'geometry'], geometry='geometry')
+            return gpd.GeoDataFrame(
+                columns=["id", "cloud_free_days", "ndvi_mean", "geometry"],
+                geometry="geometry",
+            )
 
     def _merge_tile_data(
         self, tile_stats_gdf: gpd.GeoDataFrame, plain_tiles_gdf: gpd.GeoDataFrame
     ) -> gpd.GeoDataFrame:
         """Merges tile statistics with plain tile geometries."""
         if tile_stats_gdf.empty or plain_tiles_gdf.empty:
-            print("Warning: Cannot merge tile data because one or both GeoDataFrames are empty.")
-            return gpd.GeoDataFrame(columns=['id', 'cloud_free_days', 'ndvi_mean', 'geometry'], geometry='geometry')
+            print(
+                "Warning: Cannot merge tile data because one or both GeoDataFrames are empty."
+            )
+            return gpd.GeoDataFrame(
+                columns=["id", "cloud_free_days", "ndvi_mean", "geometry"],
+                geometry="geometry",
+            )
 
-        if 'id' not in tile_stats_gdf.columns:
-             print("Error: Tile stats GeoDataFrame is missing the 'id' column for merging.")
-             return gpd.GeoDataFrame(columns=['id', 'cloud_free_days', 'ndvi_mean', 'geometry'], geometry='geometry')
-        if 'id' not in plain_tiles_gdf.columns:
-             # Create an 'id' column in plain_tiles_gdf from its index if missing
-             print("Warning: Plain tiles GeoDataFrame is missing the 'id' column. Creating from index.")
-             plain_tiles_gdf['id'] = plain_tiles_gdf.index.astype(int)
-
+        if "id" not in tile_stats_gdf.columns:
+            print(
+                "Error: Tile stats GeoDataFrame is missing the 'id' column for merging."
+            )
+            return gpd.GeoDataFrame(
+                columns=["id", "cloud_free_days", "ndvi_mean", "geometry"],
+                geometry="geometry",
+            )
+        if "id" not in plain_tiles_gdf.columns:
+            # Create an 'id' column in plain_tiles_gdf from its index if missing
+            print(
+                "Warning: Plain tiles GeoDataFrame is missing the 'id' column. Creating from index."
+            )
+            plain_tiles_gdf["id"] = plain_tiles_gdf.index.astype(int)
 
         print("Merging tile stats and plain tiles on 'id'...")
         # Merge the dataframes on the 'id' column
@@ -262,9 +284,15 @@ class GeospatialAnalyzer:
         if not isinstance(merged_gdf, gpd.GeoDataFrame):
             merged_gdf = gpd.GeoDataFrame(merged_gdf, geometry="geometry")
 
-        if 'geometry' not in merged_gdf.columns or merged_gdf['geometry'].isnull().all():
-             print("Error: Merge resulted in a GeoDataFrame without valid geometry.")
-             return gpd.GeoDataFrame(columns=['id', 'cloud_free_days', 'ndvi_mean', 'geometry'], geometry='geometry')
+        if (
+            "geometry" not in merged_gdf.columns
+            or merged_gdf["geometry"].isnull().all()
+        ):
+            print("Error: Merge resulted in a GeoDataFrame without valid geometry.")
+            return gpd.GeoDataFrame(
+                columns=["id", "cloud_free_days", "ndvi_mean", "geometry"],
+                geometry="geometry",
+            )
 
         # Ensure merged GeoDataFrame has a CRS, ideally the same as the plain tiles
         if merged_gdf.crs is None and plain_tiles_gdf.crs is not None:
@@ -520,7 +548,6 @@ class GeospatialAnalyzer:
             print(f"Error during intersection for layer '{layer_name}': {e}")
             return 0
 
-
     # -----------------------------------------------------------------------------
     def count_high_ndvi_buildings(
         self, region: Polygon, ndvi_threshold: float = 0.4
@@ -635,7 +662,9 @@ class GeospatialAnalyzer:
             return {}
 
         try:
-            tiles = tiles.copy()
+            tiles = tiles.copy().drop(
+                columns=["id"], errors="ignore"
+            )  # Avoid SettingWithCopyWarning
             tiles["intersect_area"] = tiles.geometry.intersection(region_m_geom).area
             total_area = tiles["intersect_area"].sum()
             if total_area == 0:
@@ -770,7 +799,8 @@ class GeospatialAnalyzer:
         Returns:
             The mean total cloud-free days, or NaN if no tiles intersect or total area is zero.
         """
-        return self.weighted_tile_stat(region, 'cloud_free_days')
+        return self.weighted_tile_stat(region, "cloud_free_days")
+
     def elev_mean(self, region: Polygon) -> float:
         """
         Calculates the area-weighted mean elevation for a region using tile statistics.
@@ -858,7 +888,8 @@ class GeospatialAnalyzer:
         """
         ### YOUR IMPLEMENTATION HERE ###
         gdf = self.get_gdf_info_within_region(region, layer_name)
-        if gdf.empty: return None
+        if gdf.empty:
+            return None
         return gdf.geometry.union_all("unary")
 
     def nearest_mini_grids(self, pt: Point, k: int = 3) -> List[Tuple[str, float]]:
@@ -930,7 +961,7 @@ class GeospatialAnalyzer:
 
         try:
             distances = existing_grid_metric.geometry.distance(geometry)
-            return distances.min() if not distances.empty else float("nan")
+            return int(distances.min()) if not distances.empty else float("nan")
         except Exception as e:
             print(f"Error computing distance to existing grid: {e}")
             return float("nan")
@@ -981,7 +1012,7 @@ class GeospatialAnalyzer:
             "building_categories": building_categories,
             "intersecting_village_count": len(villages_gdf),
             "intersecting_village_details": village_data,
-            "has_truncated_villages": len(villages_gdf) > 20
+            "has_truncated_villages": len(villages_gdf) > 20,
         }
 
     def _analyze_infrastructure_in_region(self, region: Polygon) -> Dict[str, Any]:
@@ -995,8 +1026,9 @@ class GeospatialAnalyzer:
             road_types[str(highway_type)] = count
 
         # Grid infrastructure analysis
-        grid_present = self.count_existing_grid_within_region(region) > 0
-        grid_extension = self.count_grid_extension_within_region(region) > 0
+        grid_present = self.count_features_within_region(region, "existing_grid") > 0
+        grid_extension = self.count_features_within_region(region, "grid_extension") > 0
+        distance_to_grid = self.compute_distance_to_grid(region)
 
         # Candidate minigrids
         candidate_minigrids_gdf = self.get_gdf_info_within_region(
@@ -1021,6 +1053,7 @@ class GeospatialAnalyzer:
             "roads": {"total_road_segments": len(roads_gdf), "road_types": road_types},
             "electricity": {
                 "existing_grid_present": grid_present,
+                "distance_to_existing_grid": distance_to_grid,
                 "grid_extension_proposed": grid_extension,
                 "candidate_minigrids_count": len(candidate_minigrids_gdf),
                 "existing_minigrids_count": len(existing_minigrids_gdf),
@@ -1374,11 +1407,12 @@ class GeospatialAnalyzer:
             except Exception as e:
                 print(f"Error adding plain tiles to map: {e}")
 
-
         if show_minigrids and not self._candidate_minigrids_gdf.empty:
             try:
                 # Reproject to geographic CRS for Folium
-                minigrids_for_vis = self._check_and_reproject_gdf(self._candidate_minigrids_gdf.copy(), self.target_geographic_crs)
+                minigrids_for_vis = self._check_and_reproject_gdf(
+                    self._candidate_minigrids_gdf.copy(), self.target_geographic_crs
+                )
                 folium.GeoJson(
                     minigrids_for_vis.to_json(),
                     name="Mini Grids",
