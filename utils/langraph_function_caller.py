@@ -9,7 +9,6 @@ from langgraph.checkpoint.memory import InMemorySaver
 from shapely.wkt import loads as wkt_loads
 import unicodedata
 
-
 # Load system prompt from external file
 from configs.system_prompt import SYSTEM_PROMPT
 
@@ -85,7 +84,6 @@ class LangGraphGeospatialAgent:
             """
             Performs comprehensive analysis of a geographic region, providing structured insights 
             about settlements, infrastructure, and environmental characteristics.
-
             Args:
                 region: The geographic area (as a Shapely Polygon in WKT format) to analyze
                 
