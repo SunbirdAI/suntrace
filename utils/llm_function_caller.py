@@ -1,171 +1,20 @@
 import os
 import json
-import unicodedata
-import openai
-
-# import geopandas as gpd
+from openai import OpenAI
+import geopandas as gpd
 from shapely.wkt import loads as wkt_loads
-from configs.system_prompt import SYSTEM_PROMPT
+import sys
+import unicodedata
+# ── 1) define tools ──────────────────────────────────────────────────────────
+from .tools import tools
 
 # Load system prompt from external file
 current_dir = os.path.dirname(os.path.abspath(__file__))
+from configs.system_prompt import SYSTEM_PROMPT
 
 
 
-# ── 1) define tools ──────────────────────────────────────────────────────────
-tools = [
-    {
-        "name": "count_features_within_region",
-        "description": "Counts features in a specified geospatial layer that intersect with a given region. Can filter features based on a query expression.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "region": {
-                    "type": "string",
-                    "description": "The area as a Shapely Polygon in WKT format.",
-                },
-                "layer_name": {
-                    "type": "string",
-                    "enum": [
-                        "buildings",
-                        "tiles",
-                        "roads",
-                        "villages",
-                        "parishes",
-                        "subcounties",
-                        "existing_grid",
-                        "grid_extension",
-                        "candidate_minigrids",
-                        "existing_minigrids",
-                    ],
-                },
-                "filter_expr": {
-                    "type": "string",
-                    "description": "Optional pandas-style filter (e.g. \"type=='residential'\").",
-                },
-            },
-            "required": ["region", "layer_name"],
-        },
-    },
-    {
-        "name": "analyze_region",
-        "description": "Performs comprehensive analysis of a geographic region, \
-        providing structured insights about settlements, infrastructure, and environmental characteristics.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "region": {
-                    "type": "string",
-                    "description": "The geographic area (as a Shapely Polygon in WKT format) to analyze.",
-                }
-            },
-            "required": ["region"],
-        },
-    },
-    {
-        "name": "_analyze_environmental_metrics",
-        "description": "Performs comprehensive analysis of a geographic region, \
-        providing structured insights about environmental characteristics, \
-        Example response: \
-          {'ndvi_mean': -0.5122, 'ndvi_med': -0.5806,'ndvi_std': 0.2273,'evi_med': 1.4574, \
-            'elev_mean': 849.5706, 'slope_mean': 2.5659,'par_mean': 179.2317,'rain_total_mm': 34.5617, \
-            'rain_mean_mm_day': 3.2298, 'cloud_free_days': 29.0, 'vegetation_density': 'Very limited vegetation'}",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "region": {
-                    "type": "string",
-                    "description": "The geographic area (as a Shapely Polygon in WKT format) to analyze.",
-                }
-            },
-            "required": ["region"],
-        },
-    },
-    {
-        "name": "_analyze_settlements_in_region",
-        "description": "Analyzes building data and settlement patterns within a specified geographic region. \
-        Returns a summary of building counts, categories, and intersecting villages with their electrification categories. \
-        Example response: \
-        {'building_count': 240, \
-        'building_categories': {'residential': 239, 'health facility': 1}, \
-        'intersecting_village_count': 3, \
-        'intersecting_village_details': [{'name': 'Otaa', 'electrification_category': 'Solar home system'}, \
-                                        {'name': 'Mudu Central', 'electrification_category': 'Existing minigrid'}, \
-                                        {'name': 'Mudu East', 'electrification_category': 'Candidate minigrid', 'priority_rank': 21}, \
-        'has_truncated_villages': False}.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "region": {
-                    "type": "string",
-                    "description": "The geographic area (as a Shapely Polygon in WKT format) to analyze.",
-                }
-            },
-            "required": ["region"],
-        },
-    },
-    {
-        "name": "_analyze_infrastructure_in_region",
-        "description": "Analyzes infrastructure elements including roads, grid, and energy systems. \
-        Example response: \
-        {'roads': {'total_road_segments': 32, 'road_types': {'tertiary': 1, 'unclassified': 31}}, \
-        'electricity': {'existing_grid_present': False, 'distance_to_existing_grid': 7928.6, 'grid_extension_proposed': False, 'candidate_minigrids_count': 1, \
-                        'existing_minigrids_count': 0, 'capacity_distribution': {}, 'population_to_be_served': 568}}",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "region": {
-                    "type": "string",
-                    "description": "The geographic area (as a Shapely Polygon in WKT format) to analyze.",
-                }
-            },
-            "required": ["region"],
-        },
-    },
-    {
-        "name": "get_layer_geometry",
-        "description": "Retrieves the Shapely geometry for the union of features of a given layer.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "region": {
-                    "type": "string",
-                    "description": "The area as a Shapely Polygon in WKT format.",
-                },
-                "layer_name": {
-                    "type": "string",
-                    "enum": [
-                        "buildings",
-                        "tiles",
-                        "roads",
-                        "villages",
-                        "parishes",
-                        "subcounties",
-                        "existing_grid",
-                        "grid_extension",
-                        "candidate_minigrids",
-                        "existing_minigrids",
-                    ],
-                },
-            },
-            "required": ["region", "layer_name"],
-        },
-    },
-    {
-        "name": "compute_distance_to_grid",
-        "description": "Calculates the distance from a given geometry to the nearest grid infrastructure. Returns the distance in meters.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "geometry": {
-                    "type": "string",
-                    "description": "The geometry to measure distance from (as a Shapely Polygon in WKT format).",
-                }
-            },
-            "required": ["geom"],
-        },
-    },
-]
+client = OpenAI()
 
 
 # ── 3) dispatcher ───────────────────────────────────────────────────────────
@@ -173,14 +22,16 @@ def handle_tool_call(tool_name, parameters, geospatial_analyzer=None):
     if geospatial_analyzer is None:
         # Fallback to creating a new instance if needed
         from utils.factory import create_geospatial_analyzer
-
         geospatial_analyzer = create_geospatial_analyzer()
 
     try:
-        region = wkt_loads(parameters["region"])
+        
         if tool_name == "count_features_within_region":
+            region = wkt_loads(parameters["region"])
             return geospatial_analyzer.count_features_within_region(
-                region, parameters["layer_name"], parameters.get("filter_expr")
+                region, 
+                parameters["layer_name"], 
+                parameters.get("filter_expr")
             )
         elif tool_name == "analyze_region":
             region = wkt_loads(parameters["region"])
@@ -195,57 +46,111 @@ def handle_tool_call(tool_name, parameters, geospatial_analyzer=None):
             region = wkt_loads(parameters["region"])
             return geospatial_analyzer._analyze_infrastructure_in_region(region)
         elif tool_name == "compute_distance_to_grid":
-            geometry = wkt_loads(parameters["region"])
+            # geometry can be Point, LineString, or Polygon
+            geometry = wkt_loads(parameters["geometry"])
             return geospatial_analyzer.compute_distance_to_grid(geometry)
         else:
             raise ValueError(f"Unknown tool: {tool_name}")
     except Exception as e:
         return {"error": str(e)}
 
-
 # ── 4) helper to run a single user query ─────────────────────────────────────
 def ask_with_functions(user_prompt, analyzer=None):
-    # Sanitize the user prompt to remove problematic Unicode characters
-    user_prompt = (
-        unicodedata.normalize("NFKD", user_prompt)
-        .encode("ascii", "ignore")
-        .decode("ascii")
-    )
-    # Add system message for authoritative style
-    system_message = SYSTEM_PROMPT
+    try:
+        # Clean the user prompt - remove problematic Unicode but keep as string
+        if isinstance(user_prompt, bytes):
+            user_prompt = user_prompt.decode('utf-8', errors='ignore')
+        else:
+            user_prompt = str(user_prompt)
+        
+        # Normalize Unicode characters
+        user_prompt = unicodedata.normalize('NFKD', user_prompt)
+        
+        #print(f"Debug: Cleaned user_prompt: {user_prompt}")
+        
+        # Add system message for authoritative style
+        system_message = SYSTEM_PROMPT
 
-    # start with just the user message
-    messages = [
-        {"role": "system", "content": system_message},
-        {"role": "user", "content": user_prompt},
-    ]
-    # 1st call: let the model decide if it needs a function
-    response = openai.ChatCompletion.create(
-        model="gpt-4o-mini", messages=messages, functions=tools, function_call="auto"
-    )
-    msg = response.choices[0].message
 
-    # if it wants to call one of our tools...
-    if msg.get("function_call"):
-        name = msg.function_call.name
-        args = json.loads(msg.function_call.arguments)
+        # Start with system and user messages
+        messages = [
+            {"role": "system", "content": system_message},
+            {"role": "user", "content": user_prompt}
+        ]
 
-        # run the tool
-        result = handle_tool_call(name, args, analyzer)
+        #print("Debug: Making first API call...")
 
-        # add the tool call and its result into the conversation
-        messages.append(msg)  # the function_call request
-        messages.append(
-            {"role": "function", "name": name, "content": json.dumps(result)}
+        # First call: let the model decide if it needs functions
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            tools=tools,
+            tool_choice="auto"
         )
-
-        # 2nd call: let the model produce a final answer
-        second = openai.ChatCompletion.create(model="gpt-4o-mini", messages=messages)
-        return second.choices[0].message.content
-
-    # otherwise, just return the content
-    return msg.content
-
+        
+        response_message = response.choices[0].message
+        #print(f"Debug: First response received. Tool calls: {response_message.tool_calls}")
+        
+        # Add the assistant's response to messages
+        messages.append(response_message)
+        
+        # Check if the model wants to call functions
+        if response_message.tool_calls:
+            #print(f"Debug: Processing {len(response_message.tool_calls)} tool calls...")
+            
+            # Handle each tool call
+            for i, tool_call in enumerate(response_message.tool_calls):
+                try:
+                    function_name = tool_call.function.name
+                    function_args = json.loads(tool_call.function.arguments)
+                    
+                    #print(f"Debug: Tool call {i+1}: {function_name} with args: {function_args}")
+                    
+                    # Execute the function
+                    function_response = handle_tool_call(function_name, function_args, analyzer)
+                    
+                    #print(f"Debug: Tool call {i+1} response: {function_response}")
+                    
+                    # Add function response to messages
+                    messages.append({
+                        "tool_call_id": tool_call.id,
+                        "role": "tool",
+                        "name": function_name,
+                        "content": str(function_response)
+                    })
+                    
+                except Exception as tool_error:
+                    print(f"ERROR in tool call {i+1}: {str(tool_error)}")
+                    # Add error response to messages
+                    messages.append({
+                        "tool_call_id": tool_call.id,
+                        "role": "tool",
+                        "name": function_name,
+                        "content": f"Error: {str(tool_error)}"
+                    })
+            
+            #print("Debug: Making second API call with tool results...")
+            
+            # Second call: get the final response with function results
+            second_response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=messages,
+                tools=tools,
+                tool_choice="auto"
+            )
+            
+            return second_response.choices[0].message.content
+        else:
+            #print("Debug: No tool calls needed, returning direct response")
+            # No function calls needed, return the direct response
+            return response_message.content
+            
+    except Exception as e:
+        error_msg = f"ERROR in ask_with_functions: {str(e)}"
+        print(error_msg)
+        import traceback
+        print(f"Full traceback: {traceback.format_exc()}")
+        return error_msg
 
 # ── 5) how to supply a dynamic region ────────────────────────────────────────
 # Sample code is commented out to avoid running on import
@@ -262,44 +167,7 @@ def ask_with_functions(user_prompt, analyzer=None):
 # answer = ask_with_functions(query)
 # print(answer)
 
-"""  {
-    "type": "function",
-    "function": {
-      "name": "count_high_ndvi_buildings",
-      "description": "Counts buildings within a region whose intersected tile-based average NDVI is above a specified threshold.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "region": {
-            "type": "string",
-            "description": "The geographic area (as a Shapely Polygon in WKT format) to count high NDVI buildings within."
-          },
-          "ndvi_threshold": {
-            "type": "number",
-            "description": "The minimum average NDVI value for a tile to be considered 'high'. Defaults to 0.4."
-          }
-        },
-        "required": ["region"]
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
-      "name": "avg_ndvi",
-      "description": "Calculates the area-weighted average NDVI for a given geographic region using tile statistics.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "region": {
-            "type": "string",
-            "description": "The geographic area (as a Shapely Polygon in WKT format) to calculate average NDVI for."
-          }
-        },
-        "required": ["region"]
-      }
-    }
-  },
+"""  
   {
     "type": "function",
     "function": {
@@ -421,7 +289,27 @@ def ask_with_functions(user_prompt, analyzer=None):
           }
         }
       }
-    }
+    },
+    {
+      "name": "get_layer_geometry",
+      "description": "Retrieves the Shapely geometry for the union of features of a given layer.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "region": {
+            "type": "string",
+            "description": "The area as a Shapely Polygon in WKT format."
+          },
+          "layer_name": {
+            "type": "string",
+            "enum": ["buildings", "tiles", "roads", "villages", "parishes",
+              "subcounties", "existing_grid", "grid_extension", "candidate_minigrids", "existing_minigrids"]
+          }
+        },
+        "required": ["region", "layer_name"]
+      }
+    },
+
   }"""
 
 

@@ -2,7 +2,7 @@
 numpy==2.3.1
 geopandas==1.1.1
 dotenv==0.9.9
-openai==0.28
+openai==1.58.1
 rasterio==1.4.3
 earthengine_api==1.6.0
 folium==0.20.0
@@ -13,3 +13,9 @@ python-multipart==0.0.20
 uvicorn==0.35.0
 pydantic-settings==2.10.1
 pytest==8.4.1
+# LangGraph and LangChain dependencies
+langgraph==0.6.3
+langchain==0.3.27
+langchain-core==0.3.72
+langchain-openai==0.3.28
+langchain-google-genai==2.1.8
