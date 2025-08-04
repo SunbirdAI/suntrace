@@ -1,0 +1,30 @@
+# Bytecode and caches
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual environments
+.venv/
+env/
+venv/
+
+# Git
+.git/
+.gitignore
+
+# OS + Editor junk
+.DS_Store
+.idea/
+.vscode/
+
+# Python packaging
+*.egg-info/
+dist/
+build/
+
+# Environment files
+.env
+.env.*
+
+# Logs
+*.log

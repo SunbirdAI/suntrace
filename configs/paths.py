@@ -31,8 +31,8 @@ RAW_DATA_DIR = os.path.join(DATA_DIR, 'raw')
 PROCESSED_DATA_DIR = os.path.join(DATA_DIR, 'processed')
 
 # Model directories
-MODELS_DIR = PROJECT_ROOT / "src" / "models"
-CHECKPOINTS_DIR = PROJECT_ROOT / "checkpoints"
+# MODELS_DIR = PROJECT_ROOT / "src" / "models"
+# CHECKPOINTS_DIR = PROJECT_ROOT / "checkpoints"
 
 # Output directories
 #OUTPUTS_DIR = os.path.join(BASE_DIR, 'outputs')
