@@ -1,0 +1,51 @@
+name: Build & Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  PROJECT_ID: sb-gcp-project-01
+  REGION: europe-west1
+  REPO: suntrace-repo
+  SERVICE: suntrace
+  GCS_BUCKET: suntrace        # ← set this to the bucket where you uploaded your geojson
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          install_components: ['gcloud', 'beta', 'alpha']
+
+      # ← NEW STEP: fetch your geojson folder from GCS into ./data
+      - name: Download GeoJSON data from GCS
+        run: |
+          mkdir -p data
+          gsutil -m cp -r gs://$GCS_BUCKET/geojson/* data/
+
+      - name: Build with Cloud Build
+        run: |
+          TAG="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/${{ env.SERVICE }}"
+          # this will now include data/ in the build context
+          gcloud builds submit --tag "$TAG"
+
+      - name: Deploy to Cloud Run
+        run: |
+          TAG="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/${{ env.SERVICE }}"
+          gcloud run deploy ${{ env.SERVICE }} \
+            --image "$TAG" \
+            --region ${{ env.REGION }} \
+            --platform managed \
+            --allow-unauthenticated
