@@ -2,6 +2,7 @@ import os
 import json
 from typing import Optional, Dict, Any, List
 from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.tools import tool
 from langgraph.prebuilt import create_react_agent
 from langgraph.checkpoint.memory import InMemorySaver
@@ -32,11 +33,15 @@ class LangGraphGeospatialAgent:
         self.geospatial_analyzer = geospatial_analyzer
         
         # Initialize the LLM
-        self.llm = ChatOpenAI(
-            model="gpt-4o-mini",
+        self.llm = ChatGoogleGenerativeAI(
+            model="gemini-2.5-flash",
             temperature=0
         )
-        
+        # If OpenAI is preferred, uncomment the following line
+        # self.llm = ChatOpenAI(
+        #     model="gpt-4o", temperature=0
+        # )
+
         # Create tools
         self.tools = self._create_tools()
         
@@ -80,7 +85,7 @@ class LangGraphGeospatialAgent:
             """
             Performs comprehensive analysis of a geographic region, providing structured insights 
             about settlements, infrastructure, and environmental characteristics.
-            
+
             Args:
                 region: The geographic area (as a Shapely Polygon in WKT format) to analyze
                 

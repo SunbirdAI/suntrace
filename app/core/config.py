@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     # OpenAI settings
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
 
+    # Gemini settings
+    GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
+
     # Langsmith keys
     LANGSMITH_TRACING: str = os.getenv("LANGSMITH_TRACING", "true").lower() == "true"
     LANGSMITH_ENDPOINT: str = os.getenv("LANGSMITH_ENDPOINT", "https://api.smith.langchain.com")
