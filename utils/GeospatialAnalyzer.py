@@ -936,12 +936,12 @@ class GeospatialAnalyzer:
             print(f"Error finding nearest mini-grids: {e}")
             return []
 
-    def compute_distance_to_grid(self, geom: base.BaseGeometry) -> float:
+    def compute_distance_to_grid(self, geometry: base.BaseGeometry) -> float:
         """
         Computes the distance from a geometry to the nearest existing grid feature.
 
         Args:
-            geom: The Shapely geometry (Point, LineString, or Polygon) to measure distance from.
+            geometry: The Shapely geometry (Point, LineString, or Polygon) to measure distance from.
 
         Returns:
             The distance in meters to the nearest existing grid feature, or NaN if no grid features are available.
@@ -956,8 +956,8 @@ class GeospatialAnalyzer:
         )
 
         # Ensure the input geometry is also in the same metric CRS
-        geom_metric, _ = self._prepare_geometry_for_crs(geom, self.target_metric_crs)
-        geometry = geom_metric.geometry.iloc[0]
+        geometry_metric, _ = self._prepare_geometry_for_crs(geometry, self.target_metric_crs)
+        geometry = geometry_metric.geometry.iloc[0]
 
         try:
             distances = existing_grid_metric.geometry.distance(geometry)

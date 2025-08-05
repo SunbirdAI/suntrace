@@ -11,7 +11,7 @@ from uuid import uuid4
 from shapely.geometry import Polygon
 from shapely.wkt import dumps as wkt_dumps
 from utils.factory import create_geospatial_analyzer
-from utils.llm_function_caller import ask_with_functions
+from utils.langraph_function_caller import ask_with_functions
 from ..core.logger import logger
 from ..core.config import get_settings
 from ..core.exceptions import (
@@ -98,7 +98,7 @@ class GeospatialService:
                 "total_buildings": total_buildings,
                 "sampled_buildings": len(building_sample),
                 "total_minigrids": len(self.analyzer._candidate_minigrids_gdf),
-                "coordinate_system": "EPSG:4326",
+                "coordinate_system": self.analyzer.target_geographic_crs,
             }
             logger.info("Map layers data fetched successfully.")
 

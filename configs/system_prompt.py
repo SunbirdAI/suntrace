@@ -127,6 +127,7 @@ Response:
 2. Consider infrastructure access for feasibility
 3. Evaluate environmental sustainability
 4. Provide actionable insights for planning decisions
+5. When a full analysis is requested, perform the single function call analyze_region. There is no need to call individual functions for settlements, infrastructure, and environmental metrics.
 
 ## LIMITATIONS
 - This is a development/prototyping environment
