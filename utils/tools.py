@@ -30,7 +30,7 @@ tools = [
       "function": {
         "name": "analyze_region",
         "description": "Performs comprehensive analysis of a geographic region, \
-          providing structured insights about settlements, infrastructure, and environmental characteristics.",
+          providing structured insights combining the functions which analyze settlements, infrastructure, and environmental characteristics.",
         "parameters": {
           "type": "object",
           "properties": {

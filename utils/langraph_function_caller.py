@@ -8,6 +8,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 from shapely.wkt import loads as wkt_loads
 import unicodedata
 
+
 # Load system prompt from external file
 from configs.system_prompt import SYSTEM_PROMPT
 

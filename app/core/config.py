@@ -35,6 +35,12 @@ class Settings(BaseSettings):
     # OpenAI settings
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
 
+    # Langsmith keys
+    LANGSMITH_TRACING: str = os.getenv("LANGSMITH_TRACING", "true").lower() == "true"
+    LANGSMITH_ENDPOINT: str = os.getenv("LANGSMITH_ENDPOINT", "https://api.smith.langchain.com")
+    LANGSMITH_API_KEY: str = os.getenv("LANGSMITH_API_KEY", "")
+    LANGSMITH_PROJECT: str = os.getenv("LANGSMITH_PROJECT", "suntrace")
+
     # CORS settings
     ALLOWED_ORIGINS: list = ["*"]
 
