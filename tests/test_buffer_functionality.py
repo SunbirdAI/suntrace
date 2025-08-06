@@ -3,22 +3,24 @@
 Test script to verify buffer_geometry functionality works through the LLM interface.
 """
 
-import sys
 import os
+import sys
+
 sys.path.append(os.path.join(os.path.dirname(__file__)))
 
-from utils.llm_function_caller import ask_with_functions
-from utils.factory import create_geospatial_analyzer
 from shapely.geometry import Point
+from utils.factory import create_geospatial_analyzer
+from utils.llm_function_caller import ask_with_functions
+
 
 def test_buffer_functionality():
     """Test the buffer functionality through the LLM interface."""
-    
+
     print("🧪 Testing buffer_geometry functionality...")
-    
+
     # Create analyzer
     analyzer = create_geospatial_analyzer()
-    
+
     # Test 1: Test buffer_geometry method directly
     print("\n1. Testing buffer_geometry method directly...")
     test_point = Point(32.8, 3.16)  # Point in Lamwo, Uganda
@@ -28,16 +30,16 @@ def test_buffer_functionality():
     except Exception as e:
         print(f"❌ Direct buffer test failed: {e}")
         return False
-    
+
     # Test 2: Test through LLM interface
     print("\n2. Testing through LLM interface...")
-    
+
     # Note: For this test to work, you need OpenAI API key set
-    if not os.environ.get('OPENAI_API_KEY'):
+    if not os.environ.get("OPENAI_API_KEY"):
         print("⚠️  Skipping LLM test - OPENAI_API_KEY not set")
         print("✅ Core buffer functionality works!")
         return True
-    
+
     try:
         query = f"Create a 500 meter buffer around this point: {test_point.wkt}"
         response = ask_with_functions(query, analyzer)
@@ -49,9 +51,10 @@ def test_buffer_functionality():
             print("✅ Core buffer functionality works! (LLM API issue)")
             return True
         return False
-    
+
     print("✅ All buffer tests passed!")
     return True
+
 
 if __name__ == "__main__":
     success = test_buffer_functionality()
