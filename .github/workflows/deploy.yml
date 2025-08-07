@@ -1,0 +1,59 @@
+name: Build & Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP via Google Cloud Service Account Key JSON.
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.GOOGLE_CREDENTIALS }}'
+
+      - name: Set up gcloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
+
+      # ← NEW STEP: fetch your geojson folder from GCS into ./data
+      - name: Download GeoJSON data from GCS
+        run: |
+          mkdir -p data
+          gsutil -m cp -r gs://${{ secrets.GCS_BUCKET }}/geojson/data/* data/
+
+      - name: Build Docker image
+        run: |
+          IMAGE=${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_PROJECT_REPO }}/${{ secrets.APP_NAME }}:${{ github.sha }}
+          docker build -t $IMAGE .
+
+      - name: Push Docker image
+        run: |
+          IMAGE=${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_PROJECT_REPO }}/${{ secrets.APP_NAME }}:${{ github.sha }}
+          docker push $IMAGE
+
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ secrets.APP_NAME }}
+          image: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_PROJECT_REPO }}/${{ secrets.APP_NAME }}:${{ github.sha }}
+          region: ${{ secrets.GCP_REGION }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}

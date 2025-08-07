@@ -55,13 +55,30 @@ python main.py
 ### 4. Run in Docker
 
 ```sh
+export OPENAI_API_KEY=your_openai_key
 docker build -t suntrace .
-docker run -p 8000:8000 suntrace
+docker run --rm -d \
+  -p 8080:8080 \
+  -e OPENAI_API_KEY="${OPENAI_API_KEY}" \
+  --name suntrace \
+  suntrace:latest
+```
+
+See logs
+
+```sh
+docker logs -f suntracte
+```
+
+#### With docker compose
+
+```sh
+docker-compose up -d --build
 ```
 
 ### 5. Access Frontend
 
-Open [http://localhost:8000](http://localhost:8000) in your browser.
+Open [http://localhost:8080](http://localhost:8080) in your browser.
 
 
 ## Testing
@@ -76,6 +93,20 @@ Create a `.env` file for secrets (e.g., OpenAI API key):
 
 ```
 OPENAI_API_KEY=your_openai_key
+```
+
+## Deployment
+
+Make sure you have [**gcloud cli**](https://cloud.google.com/sdk/docs/install-sdk) installed and setup
+
+The app is deployed using [**Google Cloud Run**](https://cloud.google.com/run?hl=en)
+
+To deploy the application, run the commands below
+
+```sh
+chmod +x bin/deploy
+chmod +x start.sh
+./bin/deploy
 ```
 
 ## Data Requirements

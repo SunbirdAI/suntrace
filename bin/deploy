@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+export APP=suntrace
+export PROJECT_ID=sb-gcp-project-01
+export REGION=europe-west1
+export REPO=suntrace-repo
+export TAG=${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/${APP}
+
+# 1. Build & push through Cloud Build
+gcloud builds submit --tag $TAG
+
+
+# # 2. Deploy to Cloud Run
+gcloud run deploy $APP \
+  --image $TAG \
+  --region $REGION \
+  --platform managed \
+  --allow-unauthenticated
