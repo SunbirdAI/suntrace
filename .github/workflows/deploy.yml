@@ -4,48 +4,56 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
-env:
-  PROJECT_ID: sb-gcp-project-01
-  REGION: europe-west1
-  REPO: suntrace-repo
-  SERVICE: suntrace
-  GCS_BUCKET: suntrace        # ← set this to the bucket where you uploaded your geojson
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Authenticate to GCP
-        uses: google-github-actions/auth@v1
+      - name: Authenticate to GCP via Google Cloud Service Account Key JSON.
+        uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          credentials_json: '${{ secrets.GOOGLE_CREDENTIALS }}'
 
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v1
+      - name: Set up gcloud SDK
+        uses: google-github-actions/setup-gcloud@v2
         with:
-          project_id: ${{ env.PROJECT_ID }}
-          install_components: ['gcloud', 'beta', 'alpha']
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
 
       # ← NEW STEP: fetch your geojson folder from GCS into ./data
       - name: Download GeoJSON data from GCS
         run: |
           mkdir -p data
-          gsutil -m cp -r gs://$GCS_BUCKET/geojson/* data/
+          gsutil -m cp -r gs://${{ secrets.GCS_BUCKET }}/geojson/data/* data/
 
-      - name: Build with Cloud Build
+      - name: Build Docker image
         run: |
-          TAG="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/${{ env.SERVICE }}"
-          # this will now include data/ in the build context
-          gcloud builds submit --tag "$TAG"
+          IMAGE=${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_PROJECT_REPO }}/${{ secrets.APP_NAME }}:${{ github.sha }}
+          docker build -t $IMAGE .
+
+      - name: Push Docker image
+        run: |
+          IMAGE=${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_PROJECT_REPO }}/${{ secrets.APP_NAME }}:${{ github.sha }}
+          docker push $IMAGE
 
       - name: Deploy to Cloud Run
-        run: |
-          TAG="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/${{ env.SERVICE }}"
-          gcloud run deploy ${{ env.SERVICE }} \
-            --image "$TAG" \
-            --region ${{ env.REGION }} \
-            --platform managed \
-            --allow-unauthenticated
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ secrets.APP_NAME }}
+          image: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_PROJECT_REPO }}/${{ secrets.APP_NAME }}:${{ github.sha }}
+          region: ${{ secrets.GCP_REGION }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
