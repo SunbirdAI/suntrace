@@ -314,11 +314,6 @@ def ask_with_functions(user_prompt, analyzer=None):
 
 
 """
-        elif tool_name == "count_high_ndvi_buildings":
-            region = wkt_loads(parameters["region"])
-            ndvi_threshold = parameters.get("ndvi_threshold", 0.4)
-            return geospatial_analyzer.count_high_ndvi_buildings(region, ndvi_threshold)
-
         elif tool_name == "avg_ndvi":
             region = wkt_loads(parameters["region"])
             return geospatial_analyzer.avg_ndvi(region)

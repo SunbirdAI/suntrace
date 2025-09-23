@@ -6,7 +6,7 @@ PROJECT_ROOT = Path(__file__).parent.parent.absolute()
 
 # Data paths
 DATA_DIR = PROJECT_ROOT / "data"
-TILE_STATS_PATH = DATA_DIR / "Lamwo_Tile_Stats_EE.csv"
+TILE_STATS_PATH = DATA_DIR / "Lamwo_Tile_Stats_EE_biomass.csv"
 PLAIN_TILES_PATH = DATA_DIR / "lamwo_sentinel_composites" / "lamwo_grid.geojson"
 
 VIZUALIZATION_DIR = DATA_DIR / "viz_geojsons"

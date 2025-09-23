@@ -2,7 +2,6 @@
 Geospatial analysis service
 """
 
-import json
 import time
 
 from uuid import uuid4
@@ -62,7 +61,7 @@ class GeospatialService:
         try:
             # Get bounds for the map from the plain tiles
             logger.info("Fetching map layers data.")
-            bounds = self.analyzer._plain_tiles_gdf.total_bounds.tolist()
+            bounds = self.analyzer.get_layer_bounds("tiles")
 
             # Calculate center coordinates
             center = Coordinates(
@@ -78,26 +77,20 @@ class GeospatialService:
             )
 
             # Convert minigrids to GeoJSON
-            candidate_minigrids_geo = json.loads(
-                self.analyzer._candidate_minigrids_gdf.to_crs("EPSG:4326").to_json()
-            )
+            candidate_minigrids_geo = self.analyzer.get_layer_geojson("candidate_minigrids")
 
             # Get a sample of buildings to avoid performance issues
-            total_buildings = len(self.analyzer._buildings_gdf)
-            building_sample = (
-                self.analyzer._buildings_gdf.sample(
-                    min(settings.BUILDING_SAMPLE_LIMIT, total_buildings)
-                )
-                if total_buildings > settings.BUILDING_SAMPLE_LIMIT
-                else self.analyzer._buildings_gdf
+            total_buildings = self.analyzer.get_layer_count("buildings")
+            buildings_geo = self.analyzer.get_layer_geojson(
+                "buildings", sample=settings.BUILDING_SAMPLE_LIMIT
             )
-            buildings_geo = json.loads(building_sample.to_crs("EPSG:4326").to_json())
+            sampled_buildings = len(buildings_geo.get("features", []))
 
             # Create metadata
             metadata = {
                 "total_buildings": total_buildings,
-                "sampled_buildings": len(building_sample),
-                "total_minigrids": len(self.analyzer._candidate_minigrids_gdf),
+                "sampled_buildings": sampled_buildings,
+                "total_minigrids": self.analyzer.get_layer_count("candidate_minigrids"),
                 "coordinate_system": self.analyzer.target_geographic_crs,
             }
             logger.info("Map layers data fetched successfully.")

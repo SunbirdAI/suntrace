@@ -1,10 +1,11 @@
-"""
-Main FastAPI application entry point
-"""
+"""Main FastAPI application entry point."""
 
+import logging
 import sys
 from pathlib import Path
+
 import uvicorn
+
 from app.api.deps import create_application
 from app.core.config import get_settings
 
@@ -14,6 +15,9 @@ project_root = src_dir.parent
 sys.path.insert(0, str(src_dir))
 sys.path.insert(0, str(project_root))
 
+
+logging.basicConfig(level=logging.INFO)
+logging.getLogger("GeospatialAnalyzer2").setLevel(logging.INFO)
 
 settings = get_settings()
 app = create_application()
