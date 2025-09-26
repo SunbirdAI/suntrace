@@ -1,3 +1,4 @@
+import json
 from typing import List, Dict, Tuple, Optional, Any
 import warnings
 import geopandas as gpd
@@ -119,6 +120,20 @@ class GeospatialAnalyzer:
         )  # Assuming all are same after merge
         if not self._joined_tiles_gdf.empty:
             print(f"Joined Tiles CRS: {self._joined_tiles_gdf.crs}")
+
+        self._layer_map: Dict[str, gpd.GeoDataFrame] = {
+            "buildings": self._buildings_gdf,
+            "tiles": self._joined_tiles_gdf,
+            "tile_stats": self._tile_stats_gdf,
+            "roads": self._roads_gdf,
+            "villages": self._villages_gdf,
+            "parishes": self._parishes_gdf,
+            "subcounties": self._subcounties_gdf,
+            "existing_grid": self._existing_grid_gdf,
+            "grid_extension": self._grid_extension_gdf,
+            "candidate_minigrids": self._candidate_minigrids_gdf,
+            "existing_minigrids": self._existing_minigrids_gdf,
+        }
 
     def _load_and_validate_gdf(
         self, path: str, ensure_crs: bool = False
@@ -549,90 +564,6 @@ class GeospatialAnalyzer:
             return 0
 
     # -----------------------------------------------------------------------------
-    def count_high_ndvi_buildings(
-        self, region: Polygon, ndvi_threshold: float = 0.4
-    ) -> int:
-        """
-        Counts buildings whose intersected tile-based NDVI_mean > threshold.
-
-        Args:
-            region: The Shapely Polygon defining the area of interest.
-            ndvi_threshold: The minimum average NDVI for a tile to be considered 'high'.
-
-        Returns:
-            The number of buildings within high-NDVI tile areas within the region.
-        """
-        # Use the joined tiles gdf which includes both geometry and ndvi_mean
-        if (
-            self._joined_tiles_gdf.empty
-            or "ndvi_mean" not in self._joined_tiles_gdf.columns
-        ):
-            print(
-                "Error: Joined tiles data is empty or missing 'ndvi_mean' for count_high_ndvi_buildings."
-            )
-            return 0
-
-        # Ensure consistent CRS for tile intersection with the region
-        tiles_for_intersect = self._check_and_reproject_gdf(
-            self._joined_tiles_gdf.copy(), region.crs
-        )
-        region_for_tiles_intersect = region  # Assuming region's CRS is the target
-
-        tiles_in_region = tiles_for_intersect.loc[
-            tiles_for_intersect.intersects(region_for_tiles_intersect)
-        ].copy()
-
-        if tiles_in_region.empty:
-            return 0
-
-        # Keep only high-NDVI tiles
-        high_ndvi_tiles = tiles_in_region.loc[
-            tiles_in_region["ndvi_mean"] > ndvi_threshold
-        ].copy()
-
-        if high_ndvi_tiles.empty:
-            return 0
-
-        # Buffer those tiles into a unioned polygon
-        # Ensure metric CRS for accurate buffering and union
-        high_ndvi_tiles_metric = self._check_and_reproject_gdf(
-            high_ndvi_tiles, self.target_metric_crs
-        )
-
-        try:
-            highveg_area_metric = high_ndvi_tiles_metric.unary_union
-        except Exception as e:
-            print(
-                f"Error performing unary_union on high NDVI tiles for count_high_ndvi_buildings: {e}"
-            )
-            return 0
-
-        # Intersect buildings with that highveg_area ∩ region
-        # Ensure buildings_gdf is in the same CRS as the highveg_area_metric for intersection
-        buildings_to_intersect = self._check_and_reproject_gdf(
-            self._buildings_gdf.copy(), highveg_area_metric.crs
-        )
-
-        # Ensure the region is also in the metric CRS for the final intersection
-        region_metric, _ = self._prepare_geometry_for_crs(
-            region, self.target_metric_crs
-        )
-
-        try:
-            # Intersect buildings with the high vegetation area and the region
-            # Note: This can be computationally intensive for large datasets
-            intersected_buildings = buildings_to_intersect.loc[
-                buildings_to_intersect.intersects(highveg_area_metric)
-                & buildings_to_intersect.intersects(region_metric)
-            ]
-            return len(intersected_buildings)
-        except Exception as e:
-            print(
-                f"Error during building intersection with high vegetation area and region in count_high_ndvi_buildings: {e}"
-            )
-            return 0
-
-    # -----------------------------------------------------------------------------
     # 3) NDVI & other tile‐based stats
     # -----------------------------------------------------------------------------
     def weighted_tile_stats_all(self, region: Polygon) -> Dict[str, float]:
@@ -656,6 +587,10 @@ class GeospatialAnalyzer:
         region_m, _ = self._prepare_geometry_for_crs(region, self.target_metric_crs)
         region_m_geom = region_m.geometry.iloc[0]
 
+        # Compute region area in metric units (m^2)
+        region_area_km2 = float(region_m_geom.area) / 1e6
+
+
         tiles = tiles_m.loc[tiles_m.intersects(region_m_geom)]
 
         if tiles.empty:
@@ -663,7 +598,7 @@ class GeospatialAnalyzer:
 
         try:
             tiles = tiles.copy().drop(
-                columns=["id"], errors="ignore"
+                columns=["id", "tile_total_Mg", "area_m2"], errors="ignore"
             )  # Avoid SettingWithCopyWarning
             tiles["intersect_area"] = tiles.geometry.intersection(region_m_geom).area
             total_area = tiles["intersect_area"].sum()
@@ -682,6 +617,8 @@ class GeospatialAnalyzer:
                 weighted_stats[col] = (
                     weighted_sum / total_area if total_area > 0 else float("nan")
                 )
+            # include region area in the returned dictionary
+            weighted_stats["region_area_km2"] = region_area_km2
             return weighted_stats
         except Exception as e:
             print(f"Error calculating area-weighted averages for all stats: {e}")
@@ -836,7 +773,40 @@ class GeospatialAnalyzer:
             The area-weighted mean PAR, or NaN if no tiles intersect or total area is zero.
         """
         return self.weighted_tile_stat(region, "par_mean")
+    def region_total_biomass(self, region: Polygon, tile_total_col: str = "tile_total_Mg") -> float:
+        """
+        Returns total biomass (Mg) inside `region` by summing each intersecting tile's
+        fractional contribution: tile_total_Mg * (intersection_area / tile_area).
+        """
+        if self._joined_tiles_gdf.empty or tile_total_col not in self._joined_tiles_gdf.columns:
+            print(f"Error: Joined tiles data is empty or missing '{tile_total_col}'.")
+            return float("nan")
 
+        # Work on copy and ensure metric CRS for area calculations
+        tiles_gdf = self._check_and_reproject_gdf(self._joined_tiles_gdf.copy(), self.target_metric_crs)
+        region_m, _ = self._prepare_geometry_for_crs(region, self.target_metric_crs)
+        region_geom = region_m.geometry.iloc[0]
+
+        tiles = tiles_gdf.loc[tiles_gdf.intersects(region_geom)].copy()
+        if tiles.empty:
+            return 0.0
+
+        # Ensure tile area column exists (area_m2)
+        if "area_m2" not in tiles.columns:
+            tiles["area_m2"] = tiles.geometry.area
+
+        # Compute intersection areas and fractional contributions
+        tiles["intersect_area"] = tiles.geometry.intersection(region_geom).area
+        # Avoid negative/zero division
+        valid = tiles["area_m2"] > 0
+        if not valid.any():
+            return float("nan")
+
+        tiles.loc[valid, "fraction"] = tiles.loc[valid, "intersect_area"] / tiles.loc[valid, "area_m2"]
+        tiles["fraction"] = tiles["fraction"].fillna(0.0).clip(lower=0.0, upper=1.0)
+
+        tiles["contrib_Mg"] = tiles[tile_total_col] * tiles["fraction"]
+        return float(tiles["contrib_Mg"].sum())
     # -----------------------------------------------------------------------------
     # 4) Get Layer Geoms and Nearest‐neighbor queries
     # -----------------------------------------------------------------------------
@@ -1107,6 +1077,8 @@ class GeospatialAnalyzer:
                 env_stats["vegetation_density"] = "Sparse vegetation"
             else:
                 env_stats["vegetation_density"] = "Very limited vegetation"
+        # add total biomass for region
+        env_stats["total_biomass_Mg"] = self.region_total_biomass(region)
 
         return env_stats
 
@@ -1131,63 +1103,7 @@ class GeospatialAnalyzer:
             # "region_summary": self._generate_region_summary(region)
         }
 
-    # -----------------------------------------------------------------------------
-    # 5) Generic SQL‐backed primitive (PostGIS) - Uncomment if using
-    # -----------------------------------------------------------------------------
-    # def query_postgis(self, sql: str) -> gpd.GeoDataFrame:
-    #     """
-    #     Runs a raw SQL query against PostGIS and returns a GeoDataFrame.
-    #
-    #     Args:
-    #         sql: The SQL query string.
-    #
-    #     Returns:
-    #         A GeoDataFrame containing the query results.
-    #     """
-    #     if self._db_engine is None:
-    #          print("Error: PostGIS database engine not initialized.")
-    #          return gpd.GeoDataFrame()
-    #     try:
-    #         return gpd.read_postgis(sql, self._db_engine, geom_col="geom")
-    #     except Exception as e:
-    #          print(f"Error executing PostGIS query: {e}")
-    #          return gpd.GeoDataFrame()
-
-    # def avg_ndvi_postgis(self, region: Polygon) -> float:
-    #     """
-    #     Computes area‐weighted average NDVI via PostGIS SQL.
-    #
-    #     Args:
-    #         region: The Shapely Polygon defining the area of interest.
-    #
-    #     Returns:
-    #         The area-weighted average NDVI from PostGIS, or NaN if an error occurs.
-    #     """
-    #     if self._db_engine is None:
-    #          print("Error: PostGIS database engine not initialized.")
-    #          return float("nan")
-    #     try:
-    #         # Ensure region is in a suitable CRS for PostGIS (assuming 4326 for WKT)
-    #         region_4326, _ = self._ensure_crs_for_calculation(region, "EPSG:4326")
-    #         wkt = region_4326.wkt
-    #         # Assuming your tile_stats table in PostGIS has columns ndvi_mean and geom (with SRID 4326)
-    #         sql = f"""
-    #         SELECT SUM(t.ndvi_mean * ST_Area(ST_Intersection(t.geom, ST_GeomFromText('{wkt}', 4326))))
-    #                / SUM(ST_Area(ST_Intersection(t.geom, ST_GeomFromText('{wkt}', 4326))))
-    #           AS avg_ndvi
-    #         FROM tile_stats t
-    #         WHERE ST_Intersects(t.geom, ST_GeomFromText('{wkt}', 4326));
-    #         """
-    #         df = self.query_postgis(sql)
-    #         if not df.empty and 'avg_ndvi' in df.columns:
-    #             return float(df["avg_ndvi"].iloc[0])
-    #         else:
-    #             print("Warning: PostGIS query returned no results or expected column for avg_ndvi_postgis.")
-    #             return float("nan")
-    #     except Exception as e:
-    #          print(f"Error executing PostGIS average NDVI query: {e}")
-    #          return float("nan")
-
+    
     # -----------------------------------------------------------------------------
     # 6) Raster‐on‐the‐fly via Earth Engine - Uncomment if using
     # -----------------------------------------------------------------------------
@@ -1491,3 +1407,46 @@ class GeospatialAnalyzer:
         # display(m) # Uncomment this line if you need to explicitly display
 
         return m  # Return the map object
+    def _get_layer_gdf(self, layer_name: str) -> gpd.GeoDataFrame:
+        if layer_name not in self._layer_map:
+            raise ValueError(
+                f"Unknown layer name '{layer_name}'. Available layers: {list(self._layer_map.keys())}"
+            )
+        return self._layer_map[layer_name]
+
+    def get_layer_bounds(self, layer_name: str) -> List[float]:
+        gdf = self._get_layer_gdf(layer_name)
+        if gdf.empty:
+            return [float("nan")] * 4
+        return gdf.total_bounds.tolist()
+
+    def get_layer_geojson(
+        self,
+        layer_name: str,
+        *,
+        limit: Optional[int] = None,
+        sample: Optional[int] = None,
+        target_crs: str = "EPSG:4326",
+    ) -> Dict[str, Any]:
+        gdf = self._get_layer_gdf(layer_name)
+        if gdf.empty:
+            return {"type": "FeatureCollection", "features": []}
+
+        subset = gdf
+        if sample is not None and sample > 0:
+            subset = subset.sample(min(sample, len(subset)))
+        elif limit is not None and limit > 0:
+            subset = subset.head(limit)
+
+        if subset.crs is not None:
+            crs_str = subset.crs.to_string() if hasattr(subset.crs, "to_string") else str(subset.crs)
+            if crs_str != target_crs:
+                subset = subset.to_crs(target_crs)
+        else:
+            subset = subset.set_crs(target_crs, allow_override=True)
+
+        return json.loads(subset.to_json())
+
+    def get_layer_count(self, layer_name: str) -> int:
+        gdf = self._get_layer_gdf(layer_name)
+        return int(len(gdf))

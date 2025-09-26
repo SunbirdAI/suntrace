@@ -85,7 +85,6 @@ class LangGraphGeospatialAgent:
             """
             Performs comprehensive analysis of a geographic region, providing structured insights 
             about settlements, infrastructure, and environmental characteristics.
-
             Args:
                 region: The geographic area (as a Shapely Polygon in WKT format) to analyze
                 

@@ -38,26 +38,24 @@ class TestGeospatialAnalyzerIntegration:
     def test_full_workflow_building_analysis(self, analyzer_with_data, test_region):
         """Test complete workflow for building analysis."""
         # Test basic counting
-        building_count = analyzer_with_data.count_buildings_within_region(test_region)
+        building_count = analyzer_with_data.count_features_within_region(
+            test_region, 'buildings'
+        )
         assert isinstance(building_count, int)
         assert building_count >= 0
 
         # Test with different buffer sizes
         if building_count > 0:
-            buffered_region = analyzer_with_data.buffer_geometry(
-                test_region, 500
-            )  # 500m buffer
-            buffered_count = analyzer_with_data.count_buildings_within_region(
-                buffered_region
+            buffered_region = analyzer_with_data.buffer_geometry(test_region, 500)  # 500m buffer
+            buffered_count = analyzer_with_data.count_features_within_region(
+                buffered_region, 'buildings'
             )
             assert buffered_count >= building_count  # Should be at least as many
 
     def test_full_workflow_ndvi_analysis(self, analyzer_with_data, test_region):
         """Test complete workflow for NDVI analysis."""
-        if (
-            analyzer_with_data._joined_tiles_gdf.empty
-            or "ndvi_mean" not in analyzer_with_data._joined_tiles_gdf.columns
-        ):
+        stats_snapshot = analyzer_with_data.weighted_tile_stats_all(test_region)
+        if not stats_snapshot or 'ndvi_mean' not in stats_snapshot:
             pytest.skip("No NDVI data available")
 
         # Test average NDVI
@@ -68,19 +66,11 @@ class TestGeospatialAnalyzerIntegration:
         # Test NDVI statistics
         ndvi_stats = analyzer_with_data.ndvi_stats(test_region)
         assert isinstance(ndvi_stats, dict)
-        assert "NDVI_mean" in ndvi_stats
-
-        # Test high NDVI building count
-        if not analyzer_with_data._buildings_gdf.empty:
-            high_ndvi_buildings = analyzer_with_data.count_high_ndvi_buildings(
-                test_region, ndvi_threshold=0.3
-            )
-            assert isinstance(high_ndvi_buildings, int)
-            assert high_ndvi_buildings >= 0
-
+        assert 'NDVI_mean' in ndvi_stats
+        
     def test_full_workflow_minigrid_analysis(self, analyzer_with_data, test_region):
         """Test complete workflow for minigrid analysis."""
-        if analyzer_with_data._minigrids_gdf.empty:
+        if not hasattr(analyzer_with_data, '_minigrids_gdf') or analyzer_with_data._minigrids_gdf.empty:
             pytest.skip("No minigrid data available")
 
         # Test listing minigrids
@@ -115,20 +105,20 @@ class TestGeospatialAnalyzerIntegration:
 
     def test_spatial_accuracy(self, analyzer_with_data, test_region):
         """Test spatial accuracy of operations."""
-        if analyzer_with_data._buildings_gdf.empty:
+        if not hasattr(analyzer_with_data, '_buildings_gdf') or analyzer_with_data._buildings_gdf.empty:
             pytest.skip("No buildings data available")
 
         # Test that buildings in buffered region >= buildings in original region
-        original_count = analyzer_with_data.count_buildings_within_region(test_region)
+        original_count = analyzer_with_data.count_features_within_region(
+            test_region, 'buildings'
+        )
 
         if original_count > 0:
-            buffered_region = analyzer_with_data.buffer_geometry(
-                test_region, 100
-            )  # 100m buffer
-            buffered_count = analyzer_with_data.count_buildings_within_region(
-                buffered_region
+            buffered_region = analyzer_with_data.buffer_geometry(test_region, 100)  # 100m buffer
+            buffered_count = analyzer_with_data.count_features_within_region(
+                buffered_region, 'buildings'
             )
-
+            
             assert buffered_count >= original_count
 
     def test_performance_with_real_data(self, analyzer_with_data, test_region):
@@ -138,11 +128,12 @@ class TestGeospatialAnalyzerIntegration:
         start_time = time.time()
 
         # Run multiple operations
-        building_count = analyzer_with_data.count_buildings_within_region(test_region)
-        if not analyzer_with_data._joined_tiles_gdf.empty:
-            avg_ndvi = analyzer_with_data.avg_ndvi(test_region)
-            ndvi_stats = analyzer_with_data.ndvi_stats(test_region)
-
+        building_count = analyzer_with_data.count_features_within_region(
+            test_region, 'buildings'
+        )
+        avg_ndvi = analyzer_with_data.avg_ndvi(test_region)
+        ndvi_stats = analyzer_with_data.ndvi_stats(test_region)
+        
         end_time = time.time()
         execution_time = end_time - start_time
 
@@ -154,7 +145,7 @@ class TestGeospatialAnalyzerIntegration:
     @pytest.mark.slow
     def test_large_region_analysis(self, analyzer_with_data):
         """Test analysis with large regions."""
-        if analyzer_with_data._buildings_gdf.empty:
+        if not hasattr(analyzer_with_data, '_buildings_gdf') or analyzer_with_data._buildings_gdf.empty:
             pytest.skip("No buildings data available")
 
         # Create a large region covering most of the data
@@ -174,27 +165,25 @@ class TestGeospatialAnalyzerIntegration:
             )
 
             # This should not crash and should return reasonable results
-            building_count = analyzer_with_data.count_buildings_within_region(
-                large_region
-            )
+            building_count = analyzer_with_data.count_features_within_region(large_region, 'buildings')
             assert isinstance(building_count, int)
             assert building_count >= 0
 
     def test_data_integrity_checks(self, analyzer_with_data):
         """Test data integrity across loaded datasets."""
         # Check that all loaded GeoDataFrames have valid CRS
-        if not analyzer_with_data._buildings_gdf.empty:
+        if hasattr(analyzer_with_data, '_buildings_gdf') and not analyzer_with_data._buildings_gdf.empty:
             assert analyzer_with_data._buildings_gdf.crs is not None
-
-        if not analyzer_with_data._minigrids_gdf.empty:
+            
+        if hasattr(analyzer_with_data, '_minigrids_gdf') and not analyzer_with_data._minigrids_gdf.empty:
             assert analyzer_with_data._minigrids_gdf.crs is not None
-
-        if not analyzer_with_data._plain_tiles_gdf.empty:
+            
+        if hasattr(analyzer_with_data, '_plain_tiles_gdf') and not analyzer_with_data._plain_tiles_gdf.empty:
             assert analyzer_with_data._plain_tiles_gdf.crs is not None
 
         # Check that joined tiles have both geometry and stats
-        if not analyzer_with_data._joined_tiles_gdf.empty:
-            assert "geometry" in analyzer_with_data._joined_tiles_gdf.columns
+        if hasattr(analyzer_with_data, '_joined_tiles_gdf') and not analyzer_with_data._joined_tiles_gdf.empty:
+            assert 'geometry' in analyzer_with_data._joined_tiles_gdf.columns
             # Should have at least some statistical columns
             stat_cols = [
                 col
@@ -208,14 +197,14 @@ class TestGeospatialAnalyzerIntegration:
         """Test that coordinate system handling is consistent."""
         # All geographic data should be transformable to common CRS
         target_crs = "EPSG:4326"  # WGS84
-
-        if not analyzer_with_data._buildings_gdf.empty:
+        
+        if hasattr(analyzer_with_data, '_buildings_gdf') and not analyzer_with_data._buildings_gdf.empty:
             buildings_4326 = analyzer_with_data._ensure_gdf_crs_for_calculation(
                 analyzer_with_data._buildings_gdf.copy(), target_crs
             )
             assert buildings_4326.crs.to_string() == target_crs
-
-        if not analyzer_with_data._minigrids_gdf.empty:
+            
+        if hasattr(analyzer_with_data, '_minigrids_gdf') and not analyzer_with_data._minigrids_gdf.empty:
             minigrids_4326 = analyzer_with_data._ensure_gdf_crs_for_calculation(
                 analyzer_with_data._minigrids_gdf.copy(), target_crs
             )

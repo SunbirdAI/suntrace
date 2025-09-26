@@ -175,7 +175,7 @@ def run_tests():
     # 1. Count buildings
     print("\n1. count_features_within (buildings):")
     try:
-        building_count = analyzer.count_buildings_within_region(test_region_polygon)
+        building_count = analyzer.count_features_within_region(test_region_polygon, 'buildings')
         print(f"  Number of buildings in sample region: {building_count}")
     except Exception as e:
         print(f"  Error counting buildings: {e}")

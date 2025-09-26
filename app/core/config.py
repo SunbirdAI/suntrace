@@ -6,6 +6,7 @@ import os
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings
+from typing import Optional
 
 
 class Settings(BaseSettings):
@@ -49,6 +50,12 @@ class Settings(BaseSettings):
 
     # Building sample limit for performance
     BUILDING_SAMPLE_LIMIT: int = 2000
+
+    # Database settings
+    SUNTRACE_USE_POSTGIS: bool = False
+    SUNTRACE_DATABASE_URI: Optional[str] = None
+
+
 
     class Config:
         env_file = ".env"
