@@ -34,13 +34,76 @@ Makefile            # Dev workflow commands
 pip install -r requirements.txt
 ```
 
-### 2. Run Tests
+### 2. (Optional) Stand Up PostGIS via Docker
+
+If you want to use the PostGIS-backed analyzer, bring up a local PostGIS container:
+
+```sh
+docker run \
+  --name suntrace-postgis \
+  -e POSTGRES_DB=suntrace \
+  -e POSTGRES_USER=pguser \
+  -e POSTGRES_PASSWORD=pgpass \
+  -p 5432:5432 \
+  -d postgis/postgis:15-3.4
+```
+
+Wait for the database to accept connections, then ensure the PostGIS extensions exist (the analyzer can do this for you, or run once inside the container):
+
+```sh
+docker exec -it suntrace-postgis psql -U pguser -d suntrace -c "CREATE EXTENSION IF NOT EXISTS postgis;"
+docker exec -it suntrace-postgis psql -U pguser -d suntrace -c "CREATE EXTENSION IF NOT EXISTS postgis_topology;"
+```
+
+### 3. Load Project Data into PostGIS
+
+With the container running and data available under `data/`, load all vector layers:
+
+```sh
+python scripts/load_to_postgis.py \
+  --data-dir data \
+  --db-uri postgresql://pguser:pgpass@localhost:5432/suntrace
+```
+
+Requirements for the loader:
+
+- `ogr2ogr` (GDAL) must be installed on the host running the script.
+```sh
+brew install gdal
+```
+- Python deps: `geopandas`, `pandas`, `sqlalchemy`.
+
+> The script scans `data/`, `data/lamwo_sentinel_composites/`, `data/viz_geojsons/`, and `data/sample_region_mudu/`, writing tables such as `public.lamwo_buildings`, `public.lamwo_roads`, `public.lamwo_tile_stats_ee_biomass`, etc. Ensure filenames follow the repository defaults so table names match the analyzer’s expectations.
+
+If you need the joined tile view, run inside a Python shell after the load:
+
+```python
+from utils.GeospatialAnalyzer2 import GeospatialAnalyzer2
+analyzer = GeospatialAnalyzer2()
+analyzer.create_joined_tiles(
+    tile_stats_table='public.lamwo_tile_stats_ee_biomass',
+    plain_tiles_table='public.lamwo_grid'
+)
+```
+
+### 4. Configure the App to Use PostGIS
+
+Set the following in `.env` (already present in this repo by default):
+
+```
+SUNTRACE_USE_POSTGIS=1
+SUNTRACE_DATABASE_URI=postgresql+psycopg://pguser:pgpass@localhost:5432/suntrace
+```
+
+Restart the app after changing the env file. The factory will log which analyzer was initialized.
+
+### 5. Run Tests
 
 ```sh
 make test
 ```
 
-### 3. Start the Application (Local)
+### 6. Start the Application (Local)
 
 ```sh
 uvicorn main:app --reload
@@ -76,7 +139,7 @@ docker logs -f suntracte
 docker-compose up -d --build
 ```
 
-### 5. Access Frontend
+### 7. Access Frontend
 
 Open [http://localhost:8080](http://localhost:8080) in your browser.
 
