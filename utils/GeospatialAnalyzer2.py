@@ -31,15 +31,34 @@ import pandas as pd
 from shapely import wkt, wkb
 from shapely.geometry import base, Point, Polygon
 from sqlalchemy import create_engine, text
+from dotenv import load_dotenv, find_dotenv
+
 
 from configs.stats import DEFAULT_TILE_STAT_COLUMNS
 
 # Configure logging for this module
 logger = logging.getLogger("GeospatialAnalyzer2")
 logger.setLevel(logging.INFO)
+load_dotenv(find_dotenv())
 
 # Default DB URI when running the recommended local PostGIS docker
 DEFAULT_DB_URI = "postgresql+psycopg://pguser:pgpass@localhost:5432/suntrace"
+DATABASE_URL = os.getenv("SUNTRACE_DATABASE_URI", DEFAULT_DB_URI)
+
+
+def get_database_url() -> str:
+    """
+    Get and potentially modify the database URL.
+
+    This function checks if the DATABASE_URL starts with 'postgres://' and
+    replaces it with 'postgresql+psycopg://' if so.
+
+    Returns:
+        str: The potentially modified database URL.
+    """
+    if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+        return DATABASE_URL.replace("postgres://", "postgresql+psycopg://", 1)
+    return DATABASE_URL
 
 
 class GeospatialAnalyzer2:

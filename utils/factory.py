@@ -9,7 +9,7 @@ from typing import Dict, Optional
 
 from configs import paths
 from utils.GeospatialAnalyzer import GeospatialAnalyzer
-from utils.GeospatialAnalyzer2 import GeospatialAnalyzer2, DEFAULT_DB_URI
+from utils.GeospatialAnalyzer2 import GeospatialAnalyzer2, DEFAULT_DB_URI, get_database_url
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +56,7 @@ def create_geospatial_analyzer(
             use_postgis = bool(os.getenv("SUNTRACE_DATABASE_URI"))
 
     if database_uri is None:
-        database_uri = os.getenv("SUNTRACE_DATABASE_URI")
+        database_uri = get_database_url()
 
     if use_postgis:
         uri = database_uri or DEFAULT_DB_URI

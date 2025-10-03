@@ -30,6 +30,7 @@ from pathlib import Path
 import pandas as pd
 import geopandas as gpd
 from sqlalchemy import create_engine, text
+from utils.GeospatialAnalyzer2 import get_database_url
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("load_to_postgis")
@@ -166,9 +167,10 @@ def main(data_dir: str, db_uri: str, ogr2ogr_path: str = "ogr2ogr"):
 
 
 if __name__ == "__main__":
+    DB_URI = get_database_url()
     p = argparse.ArgumentParser()
     p.add_argument("--data-dir", default="data", help="Path to data directory to scan and load")
-    p.add_argument("--db-uri", default=DEFAULT_DB_URI, help="SQLAlchemy DB URI for PostGIS")
+    p.add_argument("--db-uri", default=DB_URI, help="SQLAlchemy DB URI for PostGIS")
     p.add_argument("--ogr2ogr", default="ogr2ogr", help="Path to ogr2ogr binary")
     args = p.parse_args()
 
