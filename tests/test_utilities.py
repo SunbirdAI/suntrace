@@ -30,9 +30,16 @@ class TestGeospatialAnalyzerUtilities:
 
                 analyzer = GeospatialAnalyzer(
                     buildings_path="mock.gpkg",
-                    minigrids_path="mock.gpkg",
                     tile_stats_path="mock.csv",
                     plain_tiles_path="mock.geojson",
+                    candidate_minigrids_path="mock.gpkg",
+                    existing_minigrids_path="mock.gpkg",
+                    existing_grid_path="mock.gpkg",
+                    grid_extension_path="mock.gpkg",
+                    roads_path="mock.gpkg",
+                    villages_path="mock.gpkg",
+                    parishes_path="mock.gpkg",
+                    subcounties_path="mock.gpkg",
                 )
                 return analyzer
 
@@ -41,13 +48,12 @@ class TestGeospatialAnalyzerUtilities:
         # Create a point in geographic coordinates
         point = Point(-0.5, 0.5)  # Lon, Lat
 
-        # Mock the geometry to have geographic CRS
-        with patch.object(point, "crs", "EPSG:4326"):
-            buffered = mock_minimal_analyzer.buffer_geometry(point, 1000)  # 1km buffer
+        # The buffer_geometry method handles CRS conversion internally
+        buffered = mock_minimal_analyzer.buffer_geometry(point, 1000)  # 1km buffer
 
-            assert buffered is not None
-            assert hasattr(buffered, "area")
-            assert buffered.area > 0
+        assert buffered is not None
+        assert hasattr(buffered, "area")
+        assert buffered.area > 0
 
     def test_buffer_geometry_without_crs(self, mock_minimal_analyzer):
         """Test buffering without CRS information."""
@@ -59,8 +65,8 @@ class TestGeospatialAnalyzerUtilities:
         assert hasattr(buffered, "area")
         assert buffered.area > 0
 
-    def test_ensure_gdf_crs_for_calculation(self, mock_minimal_analyzer):
-        """Test CRS ensuring for GeoDataFrames."""
+    def test_check_and_reproject_gdf(self, mock_minimal_analyzer):
+        """Test CRS reprojection for GeoDataFrames."""
         # Create test GeoDataFrame
         test_gdf = gpd.GeoDataFrame(
             {"geometry": [Point(0, 0), Point(1, 1)]}, crs="EPSG:4326"
@@ -68,39 +74,37 @@ class TestGeospatialAnalyzerUtilities:
 
         target_crs = "EPSG:32636"  # UTM Zone 36N
 
-        result_gdf = mock_minimal_analyzer._ensure_gdf_crs_for_calculation(
+        result_gdf = mock_minimal_analyzer._check_and_reproject_gdf(
             test_gdf, target_crs
         )
 
         assert result_gdf.crs.to_string() == target_crs
         assert len(result_gdf) == len(test_gdf)
 
-    def test_ensure_crs_for_calculation_same_crs(self, mock_minimal_analyzer):
-        """Test CRS ensuring when geometry is already in target CRS."""
-        # Create geometry that's already in target CRS
-        target_crs = "EPSG:32636"
-        test_geom = gpd.GeoSeries([Point(0, 0)], crs=target_crs).iloc[0]
+    def test_prepare_geometry_for_crs_same_crs(self, mock_minimal_analyzer):
+        """Test geometry preparation when in same CRS."""
+        # Create geometry - prepare_geometry_for_crs assumes input is in geographic CRS
+        source_geom = Point(0, 0)
+        target_crs = mock_minimal_analyzer.target_geographic_crs
 
-        result_geom, was_reprojected = (
-            mock_minimal_analyzer._ensure_crs_for_calculation(test_geom, target_crs)
+        result_series, was_reprojected = (
+            mock_minimal_analyzer._prepare_geometry_for_crs(source_geom, target_crs)
         )
 
         assert not was_reprojected
-        assert result_geom is not None
+        assert result_series is not None
 
-    def test_ensure_crs_for_calculation_different_crs(self, mock_minimal_analyzer):
-        """Test CRS ensuring when geometry needs reprojection."""
-        source_crs = "EPSG:4326"
-        target_crs = "EPSG:32636"
+    def test_prepare_geometry_for_crs_different_crs(self, mock_minimal_analyzer):
+        """Test geometry preparation when reprojection is needed."""
+        source_geom = Point(0, 0)
+        target_crs = "EPSG:32636"  # UTM Zone 36N
 
-        test_geom = gpd.GeoSeries([Point(0, 0)], crs=source_crs).iloc[0]
-
-        result_geom, was_reprojected = (
-            mock_minimal_analyzer._ensure_crs_for_calculation(test_geom, target_crs)
+        result_series, was_reprojected = (
+            mock_minimal_analyzer._prepare_geometry_for_crs(source_geom, target_crs)
         )
 
         assert was_reprojected
-        assert result_geom is not None
+        assert result_series is not None
 
 
 class TestGeospatialAnalyzerErrorHandling:
@@ -130,9 +134,16 @@ class TestGeospatialAnalyzerErrorHandling:
 
                 analyzer = GeospatialAnalyzer(
                     buildings_path="mock.gpkg",
-                    minigrids_path="mock.gpkg",
                     tile_stats_path="mock.csv",
                     plain_tiles_path="mock.geojson",
+                    candidate_minigrids_path="mock.gpkg",
+                    existing_minigrids_path="mock.gpkg",
+                    existing_grid_path="mock.gpkg",
+                    grid_extension_path="mock.gpkg",
+                    roads_path="mock.gpkg",
+                    villages_path="mock.gpkg",
+                    parishes_path="mock.gpkg",
+                    subcounties_path="mock.gpkg",
                 )
 
                 test_region = Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])
@@ -156,9 +167,16 @@ class TestGeospatialAnalyzerErrorHandling:
 
                 analyzer = GeospatialAnalyzer(
                     buildings_path="mock.gpkg",
-                    minigrids_path="mock.gpkg",
                     tile_stats_path="mock.csv",
                     plain_tiles_path="mock.geojson",
+                    candidate_minigrids_path="mock.gpkg",
+                    existing_minigrids_path="mock.gpkg",
+                    existing_grid_path="mock.gpkg",
+                    grid_extension_path="mock.gpkg",
+                    roads_path="mock.gpkg",
+                    villages_path="mock.gpkg",
+                    parishes_path="mock.gpkg",
+                    subcounties_path="mock.gpkg",
                 )
 
                 test_region = Polygon([(0, 0), (2, 0), (2, 2), (0, 2)])

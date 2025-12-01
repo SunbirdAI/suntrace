@@ -13,8 +13,22 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 from configs.system_prompt import SYSTEM_PROMPT
 
 
+# Lazy initialization of OpenAI client
+_client = None
 
-client = OpenAI()
+
+def get_openai_client():
+    """Get or create OpenAI client lazily."""
+    global _client
+    if _client is None:
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError(
+                "OPENAI_API_KEY environment variable is not set. "
+                "Please set it to use the OpenAI-based function caller."
+            )
+        _client = OpenAI()
+    return _client
 
 
 # ── 3) dispatcher ───────────────────────────────────────────────────────────
@@ -79,6 +93,9 @@ def ask_with_functions(user_prompt, analyzer=None):
         ]
 
         #print("Debug: Making first API call...")
+
+        # Get the OpenAI client lazily
+        client = get_openai_client()
 
         # First call: let the model decide if it needs functions
         response = client.chat.completions.create(
