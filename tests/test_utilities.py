@@ -17,7 +17,13 @@ class TestGeospatialAnalyzerUtilities:
 
     @pytest.fixture
     def mock_minimal_analyzer(self):
-        """Create a minimal analyzer for utility testing."""
+        """Create a minimal analyzer for utility testing.
+        
+        Note: All paths use "mock.*" since the actual file reading is mocked.
+        The mock returns the same empty GeoDataFrame for all calls, which is
+        appropriate for testing the analyzer's methods that don't depend on
+        specific data in each layer.
+        """
         with patch("utils.GeospatialAnalyzer.gpd.read_file") as mock_read_file:
             with patch("pandas.read_csv") as mock_read_csv:
                 # Mock empty GeoDataFrames
@@ -28,18 +34,19 @@ class TestGeospatialAnalyzerUtilities:
                 empty_df = pd.DataFrame()
                 mock_read_csv.return_value = empty_df
 
+                # Paths are mocked so the actual values don't matter
                 analyzer = GeospatialAnalyzer(
-                    buildings_path="mock.gpkg",
-                    tile_stats_path="mock.csv",
-                    plain_tiles_path="mock.geojson",
-                    candidate_minigrids_path="mock.gpkg",
-                    existing_minigrids_path="mock.gpkg",
-                    existing_grid_path="mock.gpkg",
-                    grid_extension_path="mock.gpkg",
-                    roads_path="mock.gpkg",
-                    villages_path="mock.gpkg",
-                    parishes_path="mock.gpkg",
-                    subcounties_path="mock.gpkg",
+                    buildings_path="mock_buildings.gpkg",
+                    tile_stats_path="mock_stats.csv",
+                    plain_tiles_path="mock_tiles.geojson",
+                    candidate_minigrids_path="mock_candidate_minigrids.gpkg",
+                    existing_minigrids_path="mock_existing_minigrids.gpkg",
+                    existing_grid_path="mock_grid.gpkg",
+                    grid_extension_path="mock_grid_extension.gpkg",
+                    roads_path="mock_roads.gpkg",
+                    villages_path="mock_villages.gpkg",
+                    parishes_path="mock_parishes.gpkg",
+                    subcounties_path="mock_subcounties.gpkg",
                 )
                 return analyzer
 

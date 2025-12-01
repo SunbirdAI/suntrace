@@ -198,24 +198,47 @@ The analyzer supports these geospatial layers:
 
 ## Weaknesses 🔧
 
-### 1. **Outdated/Broken Tests**
-The test suite has issues:
+### 1. **~~Outdated/Broken Tests~~ (FIXED)**
+The test suite previously had issues with outdated constructor signatures.
+
+**Original Issue:**
 ```python
-# Test uses old signature (minigrids_path)
+# Test used old signature (minigrids_path)
 analyzer = GeospatialAnalyzer(
     buildings_path="mock.gpkg",
     minigrids_path="mock.gpkg",  # This parameter no longer exists!
     ...
 )
 ```
-The `GeospatialAnalyzer.__init__` signature was updated but tests weren't.
 
-### 2. **Hard-Coded API Key Initialization**
-In `utils/llm_function_caller.py`:
+**Fixed - Now uses correct signature:**
 ```python
-client = OpenAI()  # Fails if OPENAI_API_KEY not set
+analyzer = GeospatialAnalyzer(
+    buildings_path="mock_buildings.gpkg",
+    tile_stats_path="mock_stats.csv",
+    plain_tiles_path="mock_tiles.geojson",
+    candidate_minigrids_path="mock_candidate_minigrids.gpkg",
+    existing_minigrids_path="mock_existing_minigrids.gpkg",
+    existing_grid_path="mock_grid.gpkg",
+    grid_extension_path="mock_grid_extension.gpkg",
+    roads_path="mock_roads.gpkg",
+    villages_path="mock_villages.gpkg",
+    parishes_path="mock_parishes.gpkg",
+    subcounties_path="mock_subcounties.gpkg",
+)
 ```
-This causes import errors even when using Gemini.
+
+### 2. **~~Hard-Coded API Key Initialization~~ (FIXED)**
+Previously in `utils/llm_function_caller.py`:
+```python
+client = OpenAI()  # Failed if OPENAI_API_KEY not set
+```
+**Fixed:** Now uses thread-safe lazy initialization:
+```python
+def get_openai_client():
+    """Get or create OpenAI client lazily (thread-safe)."""
+    # Only initializes when actually needed
+```
 
 ### 3. **Missing Data Handling**
 - Tests require actual data files that aren't in the repo

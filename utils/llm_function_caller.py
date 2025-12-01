@@ -5,6 +5,7 @@ import geopandas as gpd
 from shapely.wkt import loads as wkt_loads
 import sys
 import unicodedata
+import threading
 # ── 1) define tools ──────────────────────────────────────────────────────────
 from .tools import tools
 
@@ -13,21 +14,25 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 from configs.system_prompt import SYSTEM_PROMPT
 
 
-# Lazy initialization of OpenAI client
+# Thread-safe lazy initialization of OpenAI client
 _client = None
+_client_lock = threading.Lock()
 
 
 def get_openai_client():
-    """Get or create OpenAI client lazily."""
+    """Get or create OpenAI client lazily (thread-safe)."""
     global _client
     if _client is None:
-        api_key = os.environ.get("OPENAI_API_KEY")
-        if not api_key:
-            raise ValueError(
-                "OPENAI_API_KEY environment variable is not set. "
-                "Please set it to use the OpenAI-based function caller."
-            )
-        _client = OpenAI()
+        with _client_lock:
+            # Double-check locking pattern
+            if _client is None:
+                api_key = os.environ.get("OPENAI_API_KEY")
+                if not api_key:
+                    raise ValueError(
+                        "OPENAI_API_KEY environment variable is not set. "
+                        "Please set it to use the OpenAI-based function caller."
+                    )
+                _client = OpenAI()
     return _client
 
 

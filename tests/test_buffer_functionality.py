@@ -71,12 +71,19 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # Test 2: Test through LLM interface (optional)
+    # The LangGraph function caller uses Google Gemini by default (GOOGLE_API_KEY)
+    # but can be configured to use OpenAI (OPENAI_API_KEY)
     print("\n2. Testing through LLM interface...")
     
-    if not os.environ.get("OPENAI_API_KEY") and not os.environ.get("GOOGLE_API_KEY"):
-        print("⚠️  Skipping LLM test - No API key set")
+    has_gemini_key = bool(os.environ.get("GOOGLE_API_KEY"))
+    has_openai_key = bool(os.environ.get("OPENAI_API_KEY"))
+    
+    if not has_gemini_key and not has_openai_key:
+        print("⚠️  Skipping LLM test - No API key set (need GOOGLE_API_KEY or OPENAI_API_KEY)")
         print("✅ Core buffer functionality works!")
     else:
+        provider = "Google Gemini" if has_gemini_key else "OpenAI"
+        print(f"   Using {provider} as LLM provider...")
         try:
             from utils.langraph_function_caller import ask_with_functions
             query = f"Create a 500 meter buffer around this point: {test_point.wkt}"
