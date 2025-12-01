@@ -1,3 +1,12 @@
+"""
+Manual test script for GeospatialAnalyzer (requires data files).
+
+This script is designed to be run directly, not through pytest.
+It requires the sample data files to be present in the data/ directory.
+
+Usage:
+    python tests/test_geospatial_analyzer.py
+"""
 import os
 import sys
 
@@ -6,28 +15,35 @@ from shapely.geometry import Point, Polygon
 
 # Add the src directory to the Python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from utils.factory import create_geospatial_analyzer
 
-# Add the project root (one level up) to the Python path for configs
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from configs.paths import SAMPLE_REGION_PATH
 
-# Define a sample region for testing (you may need to adjust coordinates)
-# These coordinates are arbitrary and likely outside your actual data extent.
-# You should use coordinates that are relevant to your data for meaningful tests.
-# using shapely open shapefile from path data/sample_region_mudu/5502888.shp
-
-# Load the sample polygon from the shapefile
-
-sample_gdf = gpd.read_file(SAMPLE_REGION_PATH)
-if sample_gdf.empty:
-    raise ValueError(
-        f"Sample region shapefile at {SAMPLE_REGION_PATH} is empty or failed to load."
-    )
-sample_polygon = sample_gdf.geometry.iloc[0]
+def get_sample_polygon():
+    """Load sample polygon from file, return None if file doesn't exist."""
+    from configs.paths import SAMPLE_REGION_PATH
+    
+    if not os.path.exists(SAMPLE_REGION_PATH):
+        print(f"Warning: Sample region file not found at {SAMPLE_REGION_PATH}")
+        return None
+    
+    sample_gdf = gpd.read_file(SAMPLE_REGION_PATH)
+    if sample_gdf.empty:
+        print(f"Warning: Sample region shapefile at {SAMPLE_REGION_PATH} is empty.")
+        return None
+    
+    return sample_gdf.geometry.iloc[0]
 
 
 def run_tests():
+    """Run manual tests for the GeospatialAnalyzer."""
+    from utils.factory import create_geospatial_analyzer
+    
+    # Load sample polygon
+    sample_polygon = get_sample_polygon()
+    if sample_polygon is None:
+        print("Error: Cannot run tests without sample polygon data.")
+        print("Please ensure data/sample_region_mudu/mudu_village.gpkg exists.")
+        return
+    
     print("Initializing GeospatialAnalyzer...")
     try:
         analyzer = create_geospatial_analyzer()
@@ -48,12 +64,12 @@ def run_tests():
     else:
         print("  Buildings GDF is empty or failed to load.")
 
-    if not analyzer._minigrids_gdf.empty:
+    if not analyzer._candidate_minigrids_gdf.empty:
         print(
-            f"  Minigrids loaded: {len(analyzer._minigrids_gdf)} features. CRS: {analyzer._minigrids_gdf.crs}"
+            f"  Candidate Minigrids loaded: {len(analyzer._candidate_minigrids_gdf)} features. CRS: {analyzer._candidate_minigrids_gdf.crs}"
         )
     else:
-        print("  Minigrids GDF is empty or failed to load.")
+        print("  Candidate Minigrids GDF is empty or failed to load.")
 
     if not analyzer._plain_tiles_gdf.empty:
         print(
@@ -180,15 +196,15 @@ def run_tests():
     except Exception as e:
         print(f"  Error counting buildings: {e}")
 
-    # 2. Count minigrids
-    print("\n2. count_features_within (minigrids):")
+    # 2. Count candidate minigrids
+    print("\n2. count_features_within (candidate_minigrids):")
     try:
         minigrid_count = analyzer.count_features_within_region(
-            test_region_polygon, "minigrids"
+            test_region_polygon, "candidate_minigrids"
         )
-        print(f"  Number of minigrids in sample region: {minigrid_count}")
+        print(f"  Number of candidate minigrids in sample region: {minigrid_count}")
     except Exception as e:
-        print(f"  Error counting minigrids: {e}")
+        print(f"  Error counting candidate minigrids: {e}")
 
     # 3. Count tiles
     print("\n3. count_features_within (tiles):")

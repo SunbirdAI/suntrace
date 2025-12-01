@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
 """
 Simple API test for buffer functionality to verify the Flask endpoints work.
+
+This is a manual test script that requires a running server.
+Run manually with: python tests/test_api_buffer.py
+
+When run via pytest, it will skip since no server is available.
 """
 
 import json
 
+import pytest
 import requests
 from shapely.geometry import Point
 from shapely.wkt import dumps as wkt_dumps
@@ -12,6 +18,7 @@ from shapely.wkt import dumps as wkt_dumps
 BASE_URL = "http://127.0.0.1:5000"
 
 
+@pytest.mark.skip(reason="Requires running server - run manually with python tests/test_api_buffer.py")
 def test_api_buffer():
     """Test buffer functionality through API endpoints"""
     print("🌐 Testing Buffer API Endpoints")

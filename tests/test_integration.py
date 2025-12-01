@@ -199,14 +199,14 @@ class TestGeospatialAnalyzerIntegration:
         target_crs = "EPSG:4326"  # WGS84
         
         if hasattr(analyzer_with_data, '_buildings_gdf') and not analyzer_with_data._buildings_gdf.empty:
-            buildings_4326 = analyzer_with_data._ensure_gdf_crs_for_calculation(
+            buildings_4326 = analyzer_with_data._check_and_reproject_gdf(
                 analyzer_with_data._buildings_gdf.copy(), target_crs
             )
             assert buildings_4326.crs.to_string() == target_crs
             
-        if hasattr(analyzer_with_data, '_minigrids_gdf') and not analyzer_with_data._minigrids_gdf.empty:
-            minigrids_4326 = analyzer_with_data._ensure_gdf_crs_for_calculation(
-                analyzer_with_data._minigrids_gdf.copy(), target_crs
+        if hasattr(analyzer_with_data, '_candidate_minigrids_gdf') and not analyzer_with_data._candidate_minigrids_gdf.empty:
+            minigrids_4326 = analyzer_with_data._check_and_reproject_gdf(
+                analyzer_with_data._candidate_minigrids_gdf.copy(), target_crs
             )
             assert minigrids_4326.crs.to_string() == target_crs
 
